@@ -232,10 +232,31 @@ def vk_call(method: str, params: dict) -> dict:
     return data['response']
 
 
+def resolve_vk_group_id() -> str:
+    """Resolve GAMEQIVA's public VK community screen name to a numeric group ID.
+
+    A numeric override may be provided if the public screen name changes.
+    Never guess an ID from the human-readable URL.
+    """
+    group_id = os.getenv('VK_GROUP_ID', '').strip()
+    if group_id:
+        if not group_id.isdigit() or int(group_id) <= 0:
+            raise RuntimeError('VK_GROUP_ID must be a positive numeric community ID')
+        return group_id
+    screen_name = os.getenv('VK_GROUP_SCREEN_NAME', 'gameqiva').strip().lstrip('@')
+    if not re.fullmatch(r'[A-Za-z0-9_.]+', screen_name):
+        raise RuntimeError('Invalid VK_GROUP_SCREEN_NAME')
+    resolved = vk_call('utils.resolveScreenName', {'screen_name': screen_name})
+    if not isinstance(resolved, dict) or resolved.get('type') != 'group':
+        raise RuntimeError('VK screen name did not resolve to a public community')
+    object_id = resolved.get('object_id')
+    if not str(object_id).isdigit() or int(object_id) <= 0:
+        raise RuntimeError('VK group numeric ID was not returned')
+    return str(object_id)
+
+
 def post_vk(text: str, picture: bytes) -> str:
-    group_id = required('VK_GROUP_ID')
-    if not group_id.isdigit() or int(group_id) <= 0:
-        raise RuntimeError('VK_GROUP_ID must be a positive numeric community ID')
+    group_id = resolve_vk_group_id()
     upload = vk_call('photos.getWallUploadServer', {'group_id': group_id})
     # The VK upload endpoint is returned dynamically by VK. Do not send tokens to this URL.
     photo = HTTP.post(upload['upload_url'], files={'photo': ('gameqiva.jpg', io.BytesIO(picture))}, timeout=45)
@@ -275,7 +296,7 @@ def run() -> int:
     # Fail early before any publishing if credentials are missing.
     required('OPENAI_API_KEY')
     if not DRY_RUN:
-        for k in ('VK_USER_TOKEN', 'VK_GROUP_ID', 'TG_BOT_TOKEN', 'TG_CHAT_ID'):
+        for k in ('VK_USER_TOKEN', 'TG_BOT_TOKEN', 'TG_CHAT_ID'):
             required(k)
     state = load_state()
     posts = state['posts']
