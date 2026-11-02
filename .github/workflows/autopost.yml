@@ -1,0 +1,44 @@
+name: GAMEQIVA Auto Publish
+on:
+  schedule:
+    # 08:00, 11:00, 14:00, 17:00, 20:00, 23:00, 02:00, 05:00 Europe/Amsterdam
+    - cron: '0 2,5,8,11,14,17,20,23 * * *'
+      timezone: Europe/Amsterdam
+  workflow_dispatch:
+concurrency:
+  group: gameqiva-autopost
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+      - name: Publish one verified news item
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: gpt-5.5
+          VK_USER_TOKEN: ${{ secrets.VK_USER_TOKEN }}
+          VK_GROUP_ID: ${{ secrets.VK_GROUP_ID }}
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          DRY_RUN: '0'
+        run: python run.py
+      - name: Save publish state across runs
+        if: always()
+        run: |
+          git config user.name 'gameqiva-autopost[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/state.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'chore: update GAMEQIVA publication state [skip ci]'
+            git push
+          fi
