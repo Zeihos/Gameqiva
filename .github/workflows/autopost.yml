@@ -1,9 +1,9 @@
 name: GAMEQIVA Auto Publish
 on:
   schedule:
-    # Europe/Amsterdam: 08, 11, 14, 17, 20, 23, 02, 05.
-    - cron: '0 2,5,8,11,14,17,20,23 * * *'
-      timezone: Europe/Amsterdam
+    # Hourly, Krasnoyarsk time (UTC+7).
+    - cron: '0 * * * *'
+      timezone: Asia/Krasnoyarsk
   workflow_dispatch:
     inputs:
       publish:
