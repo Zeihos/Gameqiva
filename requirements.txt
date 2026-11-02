@@ -1,0 +1,6 @@
+requests>=2.32,<3
+feedparser>=6.0,<7
+beautifulsoup4>=4.12,<5
+openai>=2.0,<4
+python-dotenv>=1.0,<2
+Pillow>=11.0,<13
