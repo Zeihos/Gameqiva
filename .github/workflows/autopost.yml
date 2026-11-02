@@ -1,10 +1,16 @@
 name: GAMEQIVA Auto Publish
 on:
   schedule:
-    # 08:00, 11:00, 14:00, 17:00, 20:00, 23:00, 02:00, 05:00 Europe/Amsterdam
+    # Europe/Amsterdam: 08, 11, 14, 17, 20, 23, 02, 05.
     - cron: '0 2,5,8,11,14,17,20,23 * * *'
       timezone: Europe/Amsterdam
   workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish to VK and Telegram? Disable to preview post in workflow logs.'
+        required: true
+        type: boolean
+        default: false
 concurrency:
   group: gameqiva-autopost
   cancel-in-progress: false
@@ -27,12 +33,15 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_MODEL: gpt-5.5
           VK_USER_TOKEN: ${{ secrets.VK_USER_TOKEN }}
-          VK_GROUP_ID: ${{ secrets.VK_GROUP_ID }}
+          VK_GROUP_SCREEN_NAME: gameqiva
+          # Optional repo variable with numeric group ID: blank = resolve from screen name.
+          VK_GROUP_ID: ${{ vars.VK_GROUP_ID }}
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
-          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
-          DRY_RUN: '0'
+          TG_CHAT_ID: '@gameqivo'
+          # Scheduled runs publish; manual runs preview by default.
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.publish != true && '1' || '0' }}
         run: python run.py
-      - name: Save publish state across runs
+      - name: Save publication state across runs
         if: always()
         run: |
           git config user.name 'gameqiva-autopost[bot]'
