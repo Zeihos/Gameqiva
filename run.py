@@ -29,6 +29,7 @@ STATE_PATH = Path(__file__).parent / 'data' / 'state.json'
 SOURCES = [
     ('PlayStation Blog', 'https://blog.playstation.com/feed/', 'blog.playstation.com'),
     ('Xbox Wire', 'https://news.xbox.com/en-us/feed/', 'news.xbox.com'),
+    ('Nintendo UK', 'https://www.nintendo.com/en-gb/news.xml', 'nintendo.com'),
 ]
 UA = 'GAMEQIVA-NewsBot/1.0 (+official publisher news aggregator)'
 HTTP = requests.Session()
@@ -75,7 +76,8 @@ def fetch_candidates(hours: int = 24) -> list[dict]:
             res = HTTP.get(rss, timeout=18)
             res.raise_for_status()
             feed = feedparser.parse(res.content)
-            for entry in feed.entries[:35]:
+            recent_count = 0
+            for entry in feed.entries[:50]:
                 link = entry.get('link', '').strip()
                 title = re.sub(r'\s+', ' ', entry.get('title', '')).strip()
                 if not title or not one_domain(link, allowed_domain):
@@ -90,8 +92,10 @@ def fetch_candidates(hours: int = 24) -> list[dict]:
                 when = datetime.fromtimestamp(calendar.timegm(parsed), tz=timezone.utc)
                 if not cutoff <= when <= datetime.now(timezone.utc) + timedelta(minutes=10):
                     continue
+                recent_count += 1
                 candidates.append({'url': link, 'title': title, 'publisher': publisher,
                                    'published': when.isoformat(), 'domain': allowed_domain})
+            print(f'[FEED] {publisher}: {len(feed.entries)} entries, {recent_count} fresh items in last {hours}h')
         except Exception as exc:
             print(f'[WARN] Feed {publisher} unavailable: {type(exc).__name__}: {exc}', file=sys.stderr)
     # Deduplicate by canonical source URL.
@@ -311,9 +315,20 @@ def run() -> int:
         text = record['text']
         print('[INFO] Resuming partial cross-post:', record['url'])
     else:
-        candidates = [c for c in fetch_candidates(24) if id_for(c['url']) not in posts]
+        # Allow a wider lookback ONLY for manual DRY RUN diagnostics.
+        # Live posting is always limited to the last 24 hours.
+        hours = 24
+        if DRY_RUN:
+            try:
+                hours = int(os.getenv('PREVIEW_HOURS', '24'))
+            except ValueError:
+                raise RuntimeError('PREVIEW_HOURS must be 24 or 72')
+            if hours not in (24, 72):
+                raise RuntimeError('PREVIEW_HOURS must be 24 or 72')
+        print(f'[INFO] Mode: {"preview" if DRY_RUN else "publish"}; lookback: {hours}h; feeds: {len(SOURCES)}')
+        candidates = [c for c in fetch_candidates(hours) if id_for(c['url']) not in posts]
         if not candidates:
-            print('[INFO] No new official news in last 24h. Skipping.')
+            print(f'[INFO] No new official news in last {hours}h from configured RSS feeds. No post sent. Skipping.')
             return 0
         collected = []
         for c in candidates[:12]:
