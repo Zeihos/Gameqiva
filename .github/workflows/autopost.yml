@@ -11,6 +11,13 @@ on:
         required: true
         type: boolean
         default: false
+      preview_hours:
+        description: 'Only for publish=false: check 24h or 72h of official news to test generation without posting.'
+        type: choice
+        options:
+          - '24'
+          - '72'
+        default: '24'
 concurrency:
   group: gameqiva-autopost
   cancel-in-progress: false
@@ -40,6 +47,7 @@ jobs:
           TG_CHAT_ID: '@gameqivo'
           # Scheduled runs publish; manual runs preview by default.
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.publish != true && '1' || '0' }}
+          PREVIEW_HOURS: ${{ github.event_name == 'workflow_dispatch' && inputs.publish != true && inputs.preview_hours || '24' }}
         run: python run.py
       - name: Save publication state across runs
         if: always()
