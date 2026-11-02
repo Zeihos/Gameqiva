@@ -30,6 +30,15 @@ SOURCES = [
     ('PlayStation Blog', 'https://blog.playstation.com/feed/', 'blog.playstation.com'),
     ('Xbox Wire', 'https://news.xbox.com/en-us/feed/', 'news.xbox.com'),
     ('Nintendo UK', 'https://www.nintendo.com/en-gb/news.xml', 'nintendo.com'),
+    ('PC Gamer', 'https://www.pcgamer.com/rss/', 'pcgamer.com'),
+    ('Eurogamer', 'https://www.eurogamer.net/feed', 'eurogamer.net'),
+    ('Rock Paper Shotgun', 'https://www.rockpapershotgun.com/feed', 'rockpapershotgun.com'),
+    ('Gematsu', 'https://www.gematsu.com/feed', 'gematsu.com'),
+    ('VGC', 'https://www.videogameschronicle.com/feed/', 'videogameschronicle.com'),
+    ('GamingOnLinux', 'https://www.gamingonlinux.com/article_rss.php', 'gamingonlinux.com'),
+    ('Nintendo Life', 'https://www.nintendolife.com/feeds/latest', 'nintendolife.com'),
+    ('Push Square', 'https://www.pushsquare.com/feeds/latest', 'pushsquare.com'),
+    ('Pure Xbox', 'https://www.purexbox.com/feeds/latest', 'purexbox.com'),
 ]
 UA = 'GAMEQIVA-NewsBot/1.0 (+official publisher news aggregator)'
 HTTP = requests.Session()
@@ -331,7 +340,7 @@ def run() -> int:
             print(f'[INFO] No new official news in last {hours}h from configured RSS feeds. No post sent. Skipping.')
             return 0
         collected = []
-        for c in candidates[:12]:
+        for c in candidates[:35]:
             article_candidate = get_article(c)
             if article_candidate and download_real_image(article_candidate['image_url']):
                 collected.append(article_candidate)
