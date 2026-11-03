@@ -149,7 +149,7 @@ def download_real_image(url: str) -> bytes | None:
         # Canonicalize every official source image to a regular JPEG photo so
         # both Telegram Bot API and VK image endpoints accept the same asset.
         with Image.open(io.BytesIO(res.content)) as im:
-            if im.width * im.height > 40_000_000 or min(im.size) < 150:
+            if im.width * im.height > 40_000_000 or min(im.size) < 150 or im.width / im.height > 5 or im.height / im.width > 5:
                 return None
             im.thumbnail((2560, 2560))
             image = im.convert('RGB')
@@ -349,7 +349,7 @@ def run() -> int:
         seen_topics = {p.get('topic_key') for p in posts.values() if p.get('topic_key')}
         candidates = [c for c in fetch_candidates(hours)
                       if id_for(c['url']) not in posts and topic_key(c['title']) not in seen_topics]
-        candidates.sort(key=lambda c: c['published'], reverse=True)
+        candidates.sort(key=lambda c: (c.get('tier') == 'official', c['published']), reverse=True)
         if not candidates:
             print(f'[INFO] No new official news in last {hours}h from configured RSS feeds. No post sent. Skipping.')
             return 0
