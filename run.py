@@ -26,20 +26,8 @@ from openai import OpenAI
 
 load_dotenv()
 STATE_PATH = Path(__file__).parent / 'data' / 'state.json'
-SOURCES = [
-    ('PlayStation Blog', 'https://blog.playstation.com/feed/', 'blog.playstation.com'),
-    ('Xbox Wire', 'https://news.xbox.com/en-us/feed/', 'news.xbox.com'),
-    ('Nintendo UK', 'https://www.nintendo.com/en-gb/news.xml', 'nintendo.com'),
-    ('PC Gamer', 'https://www.pcgamer.com/rss/', 'pcgamer.com'),
-    ('Eurogamer', 'https://www.eurogamer.net/feed', 'eurogamer.net'),
-    ('Rock Paper Shotgun', 'https://www.rockpapershotgun.com/feed', 'rockpapershotgun.com'),
-    ('Gematsu', 'https://www.gematsu.com/feed', 'gematsu.com'),
-    ('VGC', 'https://www.videogameschronicle.com/feed/', 'videogameschronicle.com'),
-    ('GamingOnLinux', 'https://www.gamingonlinux.com/article_rss.php', 'gamingonlinux.com'),
-    ('Nintendo Life', 'https://www.nintendolife.com/feeds/latest', 'nintendolife.com'),
-    ('Push Square', 'https://www.pushsquare.com/feeds/latest', 'pushsquare.com'),
-    ('Pure Xbox', 'https://www.purexbox.com/feeds/latest', 'purexbox.com'),
-]
+from sources import SOURCES
+
 UA = 'GAMEQIVA-NewsBot/1.0 (+official publisher news aggregator)'
 HTTP = requests.Session()
 HTTP.headers.update({'User-Agent': UA})
@@ -80,11 +68,14 @@ def one_domain(url: str, allowed: str) -> bool:
 def fetch_candidates(hours: int = 24) -> list[dict]:
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
     candidates = []
-    for publisher, rss, allowed_domain in SOURCES:
+    for publisher, rss, allowed_domain, tier, category in SOURCES:
         try:
             res = HTTP.get(rss, timeout=18)
             res.raise_for_status()
             feed = feedparser.parse(res.content)
+            if not feed.entries:
+                print(f'[WARN] Empty or unsupported feed: {publisher}', file=sys.stderr)
+                continue
             recent_count = 0
             for entry in feed.entries[:50]:
                 link = entry.get('link', '').strip()
@@ -103,7 +94,8 @@ def fetch_candidates(hours: int = 24) -> list[dict]:
                     continue
                 recent_count += 1
                 candidates.append({'url': link, 'title': title, 'publisher': publisher,
-                                   'published': when.isoformat(), 'domain': allowed_domain})
+                                   'published': when.isoformat(), 'domain': allowed_domain,
+                                   'tier': tier, 'category': category})
             print(f'[FEED] {publisher}: {len(feed.entries)} entries, {recent_count} fresh items in last {hours}h')
         except Exception as exc:
             print(f'[WARN] Feed {publisher} unavailable: {type(exc).__name__}: {exc}', file=sys.stderr)
