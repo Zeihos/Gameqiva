@@ -1,9 +1,8 @@
 name: GAMEQIVA Auto Publish
 on:
   schedule:
-    # Hourly, Krasnoyarsk time (UTC+7).
+    # Hourly in UTC (also hourly in Krasnoyarsk, UTC+7).
     - cron: '0 * * * *'
-      timezone: Asia/Krasnoyarsk
   workflow_dispatch:
     inputs:
       publish:
@@ -35,6 +34,8 @@ jobs:
           python-version: '3.12'
       - name: Install Python dependencies
         run: pip install -r requirements.txt
+      - name: Verify Python syntax
+        run: python -m compileall -q run.py sources.py
       - name: Publish one verified news item
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
