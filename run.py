@@ -293,6 +293,25 @@ def post_telegram(text: str, picture: bytes) -> str:
     return str(data['result']['message_id'])
 
 
+def topic_key(title: str) -> str:
+    words = re.findall(r'\w+', title.casefold(), flags=re.UNICODE)
+    return hashlib.sha256(' '.join(words).encode('utf-8')).hexdigest()[:24]
+
+
+def importance_score(article: dict) -> int:
+    title = article['title'].lower()
+    score = 30 if article.get('tier') == 'official' else 15
+    age = (datetime.now(timezone.utc) - datetime.fromisoformat(article['published'])).total_seconds() / 3600
+    score += max(0, 20 - int(age))
+    keywords = ('release', 'launch', 'announc', 'update', 'trailer', 'patch',
+                'free', 'available', 'security', 'driver', 'tournament', 'championship',
+                'релиз', 'обновлен', 'анонс', 'бесплатн')
+    score += min(25, 5 * sum(k in title for k in keywords))
+    score += 10 if article.get('image_url') else 0
+    score += 10 if len(article.get('article', '')) > 1000 else 0
+    return min(100, score)
+
+
 def id_for(url: str) -> str:
     return hashlib.sha256(url.encode('utf-8')).hexdigest()[:24]
 
@@ -327,7 +346,10 @@ def run() -> int:
             if hours not in (24, 72):
                 raise RuntimeError('PREVIEW_HOURS must be 24 or 72')
         print(f'[INFO] Mode: {"preview" if DRY_RUN else "publish"}; lookback: {hours}h; feeds: {len(SOURCES)}')
-        candidates = [c for c in fetch_candidates(hours) if id_for(c['url']) not in posts]
+        seen_topics = {p.get('topic_key') for p in posts.values() if p.get('topic_key')}
+        candidates = [c for c in fetch_candidates(hours)
+                      if id_for(c['url']) not in posts and topic_key(c['title']) not in seen_topics]
+        candidates.sort(key=lambda c: c['published'], reverse=True)
         if not candidates:
             print(f'[INFO] No new official news in last {hours}h from configured RSS feeds. No post sent. Skipping.')
             return 0
@@ -336,10 +358,17 @@ def run() -> int:
             article_candidate = get_article(c)
             if article_candidate and download_real_image(article_candidate['image_url']):
                 collected.append(article_candidate)
+        collected.sort(key=importance_score, reverse=True)
         if not collected:
             print('[INFO] No trustworthy full article with valid original photo. Skipping.')
             return 0
-        article = choose_article(collected, client)
+        # Only publisher-owned material is eligible for automatic publication.
+        # Third-party feeds are monitored for discovery but cannot alone establish facts.
+        verified = [a for a in collected if a.get('tier') == 'official']
+        if not verified:
+            print('[INFO] No publisher-confirmed eligible stories. Skipping.')
+            return 0
+        article = choose_article(verified[:15], client)
         if not article:
             print('[INFO] No sufficiently significant game news. Skipping.')
             return 0
@@ -347,6 +376,7 @@ def run() -> int:
         key = id_for(article['url'])
         record = {'url': article['url'], 'image_url': article['image_url'], 'text': text,
                   'created_utc': datetime.now(timezone.utc).isoformat(),
+                  'topic_key': topic_key(article['title']),
                   'vk_id': None, 'tg_id': None}
         if not DRY_RUN:
             posts[key] = record
