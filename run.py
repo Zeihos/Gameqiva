@@ -393,6 +393,7 @@ def run() -> int:
             print('[INFO] No sufficiently significant game news. Skipping.')
             return 0
         text = make_copy(article, client)
+        picture = validated_images[article['url']]
         key = id_for(article['url'])
         record = {'url': article['url'], 'image_url': article['image_url'], 'text': text,
                   'created_utc': datetime.now(timezone.utc).isoformat(),
@@ -402,7 +403,8 @@ def run() -> int:
         if not DRY_RUN:
             posts[key] = record
             save_state(state)
-    picture = download_real_image(article['image_url'])
+    if picture is None:
+        picture = download_real_image(article['image_url'])
     if not picture:
         print('[ERROR] Official image unavailable. Publishing prevented.', file=sys.stderr)
         return 1 if not DRY_RUN else 0
