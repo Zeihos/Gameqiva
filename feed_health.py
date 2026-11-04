@@ -35,4 +35,5 @@ if __name__ == '__main__':
     results = inspect_all()
     print(json.dumps([{'name': n, 'entries': e, 'fresh': f, 'status': s}
                       for n,e,f,s in results], ensure_ascii=False, indent=2))
-    print('Healthy feeds:', sum(s == 'ok' for _,_,_,s in results), '/', len(results), file=__import__('sys').stderr)
+    import sys
+    print('Healthy feeds:', sum(status == 'ok' for _,_,_,status in results), '/', len(results), file=sys.stderr)
