@@ -36,7 +36,7 @@ jobs:
         run: pip install -r requirements.txt
       - name: Verify Python syntax
         run: |
-          python -m compileall -q run.py sources.py editorial.py feed_health.py test_editorial.py test_editorial_safety.py
+          python -m compileall -q run.py sources.py editorial.py feed_health.py rss_collector.py test_editorial.py test_editorial_safety.py
           python -m unittest -q test_editorial test_editorial_safety
       - name: Publish one verified news item
         env:
