@@ -360,7 +360,7 @@ def run() -> int:
         candidates = [c for c in candidates if not is_duplicate(c['title'], c['url'], posts.values())]
         candidates.sort(key=lambda c: (c.get('tier') == 'official', c['published']), reverse=True)
         if not candidates:
-            print(f'[INFO] No new official news in last {hours}h from configured RSS feeds. No post sent. Skipping.')
+            print(f'[INFO] No new eligible RSS news in last {hours}h. No post sent. Skipping.')
             return 0
         # Fetch publisher articles concurrently; image validation happens only for finalists.
         from concurrent.futures import ThreadPoolExecutor
