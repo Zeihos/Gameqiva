@@ -36,8 +36,8 @@ jobs:
         run: pip install -r requirements.txt
       - name: Verify Python syntax
         run: |
-          python -m compileall -q run.py sources.py test_editorial.py
-          python -m unittest -q test_editorial
+          python -m compileall -q run.py sources.py editorial.py feed_health.py test_editorial.py test_editorial_safety.py
+          python -m unittest -q test_editorial test_editorial_safety
       - name: Publish one verified news item
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
