@@ -379,7 +379,12 @@ def run() -> int:
             print('[INFO] No publisher-confirmed eligible stories. Skipping.')
             return 0
         print(f'[INFO] Eligible verified stories: {len(verified)}')
-        verified = [a for a in verified[:15] if download_real_image(a['image_url'])]
+        validated_images = {}
+        for candidate in verified[:15]:
+            photo = download_real_image(candidate['image_url'])
+            if photo:
+                validated_images[candidate['url']] = photo
+        verified = [a for a in verified[:15] if a['url'] in validated_images]
         if not verified:
             print('[INFO] No eligible article with a valid photo. Skipping.')
             return 0
