@@ -1,0 +1,27 @@
+name: GAMEQIVA RSS Health
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 2 * * *'
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install requests feedparser
+      - name: Check news feeds
+        run: python feed_health.py > feed-health.json
+      - name: Publish diagnostic artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gameqiva-feed-health
+          path: feed-health.json
+          if-no-files-found: warn
+          retention-days: 14
