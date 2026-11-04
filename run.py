@@ -99,6 +99,7 @@ def fetch_candidates(hours: int = 24) -> list[dict]:
             print(f'[FEED] {publisher}: {len(feed.entries)} entries, {recent_count} fresh items in last {hours}h')
         except Exception as exc:
             print(f'[WARN] Feed {publisher} unavailable: {type(exc).__name__}: {exc}', file=sys.stderr)
+    # Feed failures are isolated: a single unavailable publisher never stops the job.
     # Deduplicate by canonical source URL.
     return list({item['url']: item for item in candidates}.values())
 
