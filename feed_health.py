@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 import calendar
 import feedparser
 import requests
+from urllib.parse import urlparse
 from sources import SOURCES
 
 def inspect_source(source, hours=24):
@@ -14,11 +15,19 @@ def inspect_source(source, hours=24):
         feed = feedparser.parse(r.content)
         cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
         fresh = 0
+        valid_links = 0
         for e in feed.entries[:50]:
+            link = e.get('link', '').strip()
+            parsed_link = urlparse(link)
+            host = parsed_link.hostname or ''
+            if parsed_link.scheme != 'https' or not (host == domain or host.endswith('.' + domain)):
+                continue
+            valid_links += 1
             p = e.get('published_parsed') or e.get('updated_parsed')
             if p and datetime.fromtimestamp(calendar.timegm(p), timezone.utc) >= cutoff:
                 fresh += 1
-        return name, len(feed.entries), fresh, 'ok' if feed.entries else 'empty'
+        status = 'ok' if valid_links else ('invalid_links' if feed.entries else 'empty')
+        return name, len(feed.entries), fresh, status
     except Exception as exc:
         return name, 0, 0, type(exc).__name__
 
