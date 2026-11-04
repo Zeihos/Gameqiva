@@ -28,6 +28,7 @@ load_dotenv()
 STATE_PATH = Path(__file__).parent / 'data' / 'state.json'
 from sources import SOURCES
 from editorial import is_duplicate, validate_post
+from rss_collector import fetch_candidates_parallel
 
 UA = 'GAMEQIVA-NewsBot/1.0 (+official publisher news aggregator)'
 HTTP = requests.Session()
@@ -349,7 +350,7 @@ def run() -> int:
                 raise RuntimeError('PREVIEW_HOURS must be 24 or 72')
         print(f'[INFO] Mode: {"preview" if DRY_RUN else "publish"}; lookback: {hours}h; feeds: {len(SOURCES)}')
         seen_topics = {p.get('topic_key') for p in posts.values() if p.get('topic_key')}
-        candidates = [c for c in fetch_candidates(hours)
+        candidates = [c for c in fetch_candidates_parallel(hours)
                       if id_for(c['url']) not in posts and topic_key(c['title']) not in seen_topics]
         candidates = [c for c in candidates if not is_duplicate(c['title'], c['url'], posts.values())]
         candidates.sort(key=lambda c: (c.get('tier') == 'official', c['published']), reverse=True)
