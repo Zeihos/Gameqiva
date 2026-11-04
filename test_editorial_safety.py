@@ -11,6 +11,11 @@ class EditorialSafetyTests(unittest.TestCase):
     def test_duplicate_headline(self):
         self.assertTrue(is_duplicate('Major Game Update Today', 'https://a.example/1',
                                      [{'url':'https://b.example/2','title':'major game update today'}]))
+    def test_reordered_headline(self):
+        old = 'Studio reveals major update for popular survival game today'
+        new = 'Today popular survival game studio reveals major update for'
+        self.assertTrue(is_duplicate(new, 'https://a.example/new',
+                                     [{'url':'https://b.example/old','title':old}]))
     def test_distinct_story(self):
         self.assertFalse(is_duplicate('New console release', 'https://a.example/1',
                                       [{'url':'https://b.example/2','title':'PC graphics card drivers'}]))
