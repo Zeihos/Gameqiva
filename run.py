@@ -332,7 +332,9 @@ def run() -> int:
 
     # Retry a partially published item before considering anything new.
     incomplete = [(key, value) for key, value in posts.items()
-                  if value.get('text') and not (value.get('vk_id') and value.get('tg_id'))]
+                  if value.get('text') and not (value.get('vk_id') and value.get('tg_id'))
+                  and datetime.fromisoformat(value.get('created_utc', datetime.now(timezone.utc).isoformat()))
+                  >= datetime.now(timezone.utc) - timedelta(hours=24)]
     if incomplete and not DRY_RUN:
         key, record = incomplete[0]
         article = {'url': record['url'], 'image_url': record['image_url']}
