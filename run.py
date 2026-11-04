@@ -27,6 +27,7 @@ from openai import OpenAI
 load_dotenv()
 STATE_PATH = Path(__file__).parent / 'data' / 'state.json'
 from sources import SOURCES
+from editorial import is_duplicate, validate_post
 
 UA = 'GAMEQIVA-NewsBot/1.0 (+official publisher news aggregator)'
 HTTP = requests.Session()
@@ -220,8 +221,8 @@ def make_copy(article: dict, client: OpenAI) -> str:
     if re.search(r'https?://|#\w+', headline + '\n' + body):
         raise RuntimeError('Generated copy contains unexpected URLs/hashtags')
     post = f'{headline}\n\n{body}'
-    if len(post) > 800:
-        raise RuntimeError('Generated copy too long for caption')
+    if not validate_post(post):
+        raise RuntimeError('Generated copy failed editorial validation')
     return post
 
 
@@ -350,6 +351,7 @@ def run() -> int:
         seen_topics = {p.get('topic_key') for p in posts.values() if p.get('topic_key')}
         candidates = [c for c in fetch_candidates(hours)
                       if id_for(c['url']) not in posts and topic_key(c['title']) not in seen_topics]
+        candidates = [c for c in candidates if not is_duplicate(c['title'], c['url'], posts.values())]
         candidates.sort(key=lambda c: (c.get('tier') == 'official', c['published']), reverse=True)
         if not candidates:
             print(f'[INFO] No new official news in last {hours}h from configured RSS feeds. No post sent. Skipping.')
@@ -378,6 +380,7 @@ def run() -> int:
         record = {'url': article['url'], 'image_url': article['image_url'], 'text': text,
                   'created_utc': datetime.now(timezone.utc).isoformat(),
                   'topic_key': topic_key(article['title']),
+                  'title': article['title'],
                   'vk_id': None, 'tg_id': None}
         if not DRY_RUN:
             posts[key] = record
