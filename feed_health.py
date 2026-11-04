@@ -13,7 +13,8 @@ def inspect_source(source, hours=24):
         r = requests.get(url, timeout=(5, 12), headers={'User-Agent':'GAMEQIVA-NewsBot/2.0'})
         r.raise_for_status()
         feed = feedparser.parse(r.content)
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+        now = datetime.now(timezone.utc)
+        cutoff = now - timedelta(hours=hours)
         fresh = 0
         valid_links = 0
         for e in feed.entries[:50]:
@@ -24,8 +25,10 @@ def inspect_source(source, hours=24):
                 continue
             valid_links += 1
             p = e.get('published_parsed') or e.get('updated_parsed')
-            if p and datetime.fromtimestamp(calendar.timegm(p), timezone.utc) >= cutoff:
-                fresh += 1
+            if p:
+                timestamp = datetime.fromtimestamp(calendar.timegm(p), timezone.utc)
+                if cutoff <= timestamp <= now + timedelta(minutes=10):
+                    fresh += 1
         status = 'ok' if valid_links else ('invalid_links' if feed.entries else 'empty')
         return name, len(feed.entries), fresh, status
     except Exception as exc:
