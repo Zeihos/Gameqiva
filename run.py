@@ -363,15 +363,17 @@ def run() -> int:
             if article_candidate and download_real_image(article_candidate['image_url']):
                 collected.append(article_candidate)
         collected.sort(key=importance_score, reverse=True)
+        print(f'[INFO] Valid articles with images: {len(collected)}')
         if not collected:
             print('[INFO] No trustworthy full article with valid original photo. Skipping.')
             return 0
         # Only publisher-owned material is eligible for automatic publication.
         # Third-party feeds are monitored for discovery but cannot alone establish facts.
-        verified = [a for a in collected if a.get('tier') == 'official']
+        verified = [a for a in collected if a.get('tier') == 'official' and importance_score(a) >= 55]
         if not verified:
             print('[INFO] No publisher-confirmed eligible stories. Skipping.')
             return 0
+        print(f'[INFO] Eligible verified stories: {len(verified)}')
         article = choose_article(verified[:15], client)
         if not article:
             print('[INFO] No sufficiently significant game news. Skipping.')
