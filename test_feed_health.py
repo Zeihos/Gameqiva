@@ -1,5 +1,5 @@
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from unittest.mock import Mock, patch
 import feed_health
 
@@ -21,6 +21,14 @@ class FeedHealthTests(unittest.TestCase):
         with patch('feed_health.requests.get', return_value=Mock(content=xml('https://example.com.evil.org/news'))):
             name, entries, fresh, status = feed_health.inspect_source(SOURCE)
         self.assertEqual((entries, fresh, status), (1, 0, 'invalid_links'))
+
+    def test_future_dated_article_not_fresh(self):
+        future = (datetime.now(timezone.utc) + timedelta(days=2)).strftime('%a, %d %b %Y %H:%M:%S GMT')
+        payload = xml('https://example.com/news').replace(
+            datetime.now(timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT').encode(), future.encode())
+        with patch('feed_health.requests.get', return_value=Mock(content=payload)):
+            _, entries, fresh, status = feed_health.inspect_source(SOURCE)
+        self.assertEqual((entries, fresh, status), (1, 0, 'ok'))
 
     def test_http_article_is_not_healthy(self):
         with patch('feed_health.requests.get', return_value=Mock(content=xml('http://example.com/news'))):
