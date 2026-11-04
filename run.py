@@ -365,7 +365,7 @@ def run() -> int:
         with ThreadPoolExecutor(max_workers=6) as pool:
             collected = [a for a in pool.map(get_article, candidates[:35]) if a]
         collected.sort(key=importance_score, reverse=True)
-        print(f'[INFO] Valid articles with images: {len(collected)}')
+        print(f'[INFO] Parsed articles with image URLs: {len(collected)}')
         if not collected:
             print('[INFO] No trustworthy full article with valid original photo. Skipping.')
             return 0
@@ -376,7 +376,11 @@ def run() -> int:
             print('[INFO] No publisher-confirmed eligible stories. Skipping.')
             return 0
         print(f'[INFO] Eligible verified stories: {len(verified)}')
-        article = choose_article(verified[:15], client)
+        verified = [a for a in verified[:15] if download_real_image(a['image_url'])]
+        if not verified:
+            print('[INFO] No eligible article with a valid photo. Skipping.')
+            return 0
+        article = choose_article(verified, client)
         if not article:
             print('[INFO] No sufficiently significant game news. Skipping.')
             return 0
