@@ -24,6 +24,12 @@ def is_duplicate(title, url, previous, threshold=0.88):
         old = normalize_title(record.get('title', ''))
         if old and target and SequenceMatcher(None, target, old).ratio() >= threshold:
             return True
+        # Catch reordered headlines about the same event across publishers.
+        a, b = set(target.split()), set(old.split())
+        if len(a) >= 5 and len(b) >= 5:
+            overlap = len(a & b) / min(len(a), len(b))
+            if overlap >= 0.85 and len(a & b) >= 5:
+                return True
     return False
 
 def validate_post(text):
