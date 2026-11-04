@@ -360,11 +360,10 @@ def run() -> int:
         if not candidates:
             print(f'[INFO] No new official news in last {hours}h from configured RSS feeds. No post sent. Skipping.')
             return 0
-        collected = []
-        for c in candidates[:35]:
-            article_candidate = get_article(c)
-            if article_candidate and download_real_image(article_candidate['image_url']):
-                collected.append(article_candidate)
+        # Fetch publisher articles concurrently; image validation happens only for finalists.
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            collected = [a for a in pool.map(get_article, candidates[:35]) if a]
         collected.sort(key=importance_score, reverse=True)
         print(f'[INFO] Valid articles with images: {len(collected)}')
         if not collected:
