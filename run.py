@@ -391,8 +391,8 @@ def run() -> int:
             save_state(state)
     picture = download_real_image(article['image_url'])
     if not picture:
-        print('[WARN] Official image unavailable. Publishing prevented.', file=sys.stderr)
-        return 0
+        print('[ERROR] Official image unavailable. Publishing prevented.', file=sys.stderr)
+        return 1 if not DRY_RUN else 0
     print('[NEWS]', article['url'])
     print('[COPY]\n' + text + '\n[IMAGE]', article['image_url'])
     if DRY_RUN:
