@@ -289,7 +289,8 @@ def post_telegram(text: str, picture: bytes) -> str:
     response = HTTP.post('https://api.telegram.org/bot' + token + '/sendPhoto',
                          data={'chat_id': chat_id, 'caption': text},
                          files={'photo': ('gameqiva.jpg', io.BytesIO(picture))}, timeout=45)
-    response.raise_for_status()
+    if response.status_code != 200:
+        raise RuntimeError(f'Telegram HTTP error {response.status_code}')
     data = response.json()
     if not data.get('ok'):
         raise RuntimeError(f'Telegram publish rejected: {data.get("description", "unknown")}')
