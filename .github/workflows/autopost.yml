@@ -41,8 +41,8 @@ jobs:
           python -m unittest -q test_editorial test_editorial_safety test_rss_collector test_feed_health
       - name: Publish one verified news item
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_MODEL: gpt-5.5
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           VK_USER_TOKEN: ${{ secrets.VK_USER_TOKEN }}
           VK_GROUP_SCREEN_NAME: gameqiva
           # Optional repo variable with numeric group ID: blank = resolve from screen name.
