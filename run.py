@@ -371,7 +371,7 @@ def post_vk(text: str, picture: bytes, source_url: str = '') -> str:
         except RuntimeError as exc:
             # Authentication or permission failures on the optional photo token
             # should not block a valid text post with the community token.
-            if not re.search(r'VK photos\\.(getWallUploadServer|saveWallPhoto) error (5|15|27):', str(exc)):
+            if not re.search(r'VK photos\.(getWallUploadServer|saveWallPhoto) error (5|15|27):', str(exc)):
                 raise
             print('[WARN] VK photo token cannot upload wall photos. '
                   'Falling back to text post with source link.', flush=True)
@@ -381,7 +381,7 @@ def post_vk(text: str, picture: bytes, source_url: str = '') -> str:
     if not source_url.startswith('https://'):
         raise RuntimeError('Cannot publish VK text fallback without verified HTTPS source URL')
     result = vk_call('wall.post', {'owner_id': -int(group_id), 'from_group': 1,
-                                  'message': f'{text}\\n\\nИсточник: {source_url}'})
+                                  'message': f'{text}\n\nИсточник: {source_url}'})
     return str(result['post_id'])
 
 
