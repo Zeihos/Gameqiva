@@ -175,24 +175,50 @@ def parse_json(text: str) -> dict:
 
 
 def ai_json(client: OpenAI, instructions: str, payload: str) -> dict:
-    response = client.chat.completions.create(
-        model=os.getenv('AI_MODEL', 'gemini-2.5-flash' if os.getenv('GEMINI_API_KEY') else 'llama-3.3-70b-versatile'),
-        messages=[{'role': 'system', 'content': instructions}, {'role': 'user', 'content': payload}],
-        response_format={'type': 'json_object'},
-        temperature=0.2,
-    )
-    content = response.choices[0].message.content
-    if not content:
-        raise RuntimeError('AI provider returned empty content')
-    return parse_json(content)
+    """Generate JSON with a compatible model; retry alternate provider on model 404."""
+    providers = []
+    if os.getenv('GEMINI_API_KEY', '').strip():
+        providers.append(('Gemini', client if client.base_url.host == 'generativelanguage.googleapis.com' else
+                          OpenAI(api_key=required('GEMINI_API_KEY'),
+                                 base_url='https://generativelanguage.googleapis.com/v1beta/openai/'),
+                          [os.getenv('GEMINI_MODEL', 'gemini-2.5-flash'), 'gemini-2.5-flash-lite']))
+    if os.getenv('GROQ_API_KEY', '').strip():
+        providers.append(('Groq', OpenAI(api_key=required('GROQ_API_KEY'),
+                                         base_url='https://api.groq.com/openai/v1'),
+                          [os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile')]))
+    last_error = None
+    for name, api, models in providers:
+        for model in dict.fromkeys(models):
+            try:
+                print(f'[INFO] AI request: {name}, model={model}', flush=True)
+                response = api.chat.completions.create(
+                    model=model,
+                    messages=[{'role': 'system', 'content': instructions},
+                              {'role': 'user', 'content': payload}],
+                    response_format={'type': 'json_object'},
+                    temperature=0.2,
+                )
+                content = response.choices[0].message.content
+                if not content:
+                    raise RuntimeError('AI provider returned empty content')
+                return parse_json(content)
+            except Exception as exc:
+                status = getattr(exc, 'status_code', None)
+                if status not in (404, 429):
+                    raise
+                last_error = exc
+                print(f'[WARN] {name} model {model} unavailable (HTTP {status}); trying next option',
+                      file=sys.stderr, flush=True)
+    raise RuntimeError('No configured AI model is available (404/429); check Gemini model access and free-tier limits') from last_error
 
 
 def ai_client() -> OpenAI:
     if os.getenv('GEMINI_API_KEY', '').strip():
-        print('[INFO] AI provider: Gemini')
-        return OpenAI(api_key=required('GEMINI_API_KEY'), base_url='https://generativelanguage.googleapis.com/v1beta/openai/')
+        print('[INFO] AI provider: Gemini', flush=True)
+        return OpenAI(api_key=required('GEMINI_API_KEY'),
+                      base_url='https://generativelanguage.googleapis.com/v1beta/openai/')
     if os.getenv('GROQ_API_KEY', '').strip():
-        print('[INFO] AI provider: Groq')
+        print('[INFO] AI provider: Groq', flush=True)
         return OpenAI(api_key=required('GROQ_API_KEY'), base_url='https://api.groq.com/openai/v1')
     raise RuntimeError('Set GEMINI_API_KEY or GROQ_API_KEY in GitHub Actions secrets')
 
