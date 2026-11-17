@@ -191,7 +191,8 @@ def ai_json(client: OpenAI, instructions: str, payload: str) -> dict:
     for name, api, configured_models in providers:
         try:
             listed = api.models.list()
-            available = {m.id for m in listed.data}
+            available = {m.id.removeprefix('models/') if name == 'Gemini' else m.id
+                         for m in listed.data}
             print(f'[INFO] {name}: model listing succeeded; {len(available)} models available', flush=True)
             models = [m for m in dict.fromkeys(configured_models) if m in available]
             if not models:
