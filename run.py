@@ -223,8 +223,7 @@ def make_copy(article: dict, client: OpenAI) -> str:
     data = {'publisher': article['publisher'], 'published_utc': article['published'],
             'title': article['title'], 'source_url': article['url'],
             'article_text': article['article']}
-    reply = client.responses.create(
-        model=os.getenv('OPENAI_MODEL', 'gpt-5.5'),
+    reply = ai_json(client,
         instructions=(
             'Ты редактор самостоятельного игрового новостного сообщества GAMEQIVA. '
             'Напиши только достоверный готовый русский пост для VK/Telegram по одному официальному '
