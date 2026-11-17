@@ -385,14 +385,22 @@ def post_vk(text: str, picture: bytes, source_url: str = '') -> str:
     return str(result['post_id'])
 
 
-def post_telegram(text: str, picture: bytes) -> str:
+def telegram_caption(text: str, source_url: str) -> str:
+    """Add verifiable attribution while respecting Telegram's photo-caption limit."""
+    if not source_url.startswith('https://') or not urlparse(source_url).hostname:
+        raise RuntimeError('Telegram post requires a verified HTTPS source URL')
+    caption = f'{text}\n\nИсточник: {source_url}'
+    if len(caption) > 1024:
+        raise RuntimeError('Telegram caption with source exceeds 1024 characters')
+    return caption
+
+
+def post_telegram(text: str, picture: bytes, source_url: str) -> str:
     token = required('TG_BOT_TOKEN')
     chat_id = required('TG_CHAT_ID')
-    # Posts must fit inside a photo caption. If not, fail closed.
-    if len(text) > 1024:
-        raise RuntimeError('Telegram caption exceeds 1024 characters')
+    caption = telegram_caption(text, source_url)
     response = HTTP.post('https://api.telegram.org/bot' + token + '/sendPhoto',
-                         data={'chat_id': chat_id, 'caption': text},
+                         data={'chat_id': chat_id, 'caption': caption},
                          files={'photo': ('gameqiva.jpg', io.BytesIO(picture))}, timeout=45)
     if response.status_code != 200:
         raise RuntimeError(f'Telegram HTTP error {response.status_code}')
@@ -534,7 +542,7 @@ def run() -> int:
             print('[ERROR] VK:', type(exc).__name__, str(exc)[:250], file=sys.stderr)
     if not record.get('tg_id'):
         try:
-            record['tg_id'] = post_telegram(text, picture)
+            record['tg_id'] = post_telegram(text, picture, article['url'])
             save_state(state)
             print('[OK] Published to Telegram, message ID:', record['tg_id'])
         except Exception as exc:
