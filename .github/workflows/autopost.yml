@@ -37,8 +37,8 @@ jobs:
         run: pip install -r requirements.txt
       - name: Verify Python syntax
         run: |
-          python -m compileall -q run.py sources.py editorial.py feed_health.py rss_collector.py test_editorial.py test_editorial_safety.py test_rss_collector.py test_feed_health.py
-          python -m unittest -q test_editorial test_editorial_safety test_rss_collector test_feed_health
+          python -m compileall -q run.py sources.py editorial.py feed_health.py rss_collector.py test_editorial.py test_editorial_safety.py test_rss_collector.py test_feed_health.py test_vk_publishing.py
+          python -m unittest -q test_editorial test_editorial_safety test_rss_collector test_feed_health test_vk_publishing
       - name: Publish one verified news item
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
