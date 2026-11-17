@@ -175,20 +175,36 @@ def parse_json(text: str) -> dict:
 
 
 def ai_json(client: OpenAI, instructions: str, payload: str) -> dict:
-    """Generate JSON with a compatible model; retry alternate provider on model 404."""
+    """Generate JSON using available free-tier providers, with actionable diagnostics."""
     providers = []
     if os.getenv('GEMINI_API_KEY', '').strip():
-        providers.append(('Gemini', client if client.base_url.host == 'generativelanguage.googleapis.com' else
-                          OpenAI(api_key=required('GEMINI_API_KEY'),
-                                 base_url='https://generativelanguage.googleapis.com/v1beta/openai/'),
-                          [os.getenv('GEMINI_MODEL', 'gemini-2.5-flash'), 'gemini-2.5-flash-lite']))
+        providers.append(('Gemini', OpenAI(api_key=required('GEMINI_API_KEY'),
+            base_url='https://generativelanguage.googleapis.com/v1beta/openai/'),
+            [os.getenv('GEMINI_MODEL', 'gemini-2.5-flash'),
+             'gemini-2.5-flash-lite']))
     if os.getenv('GROQ_API_KEY', '').strip():
         providers.append(('Groq', OpenAI(api_key=required('GROQ_API_KEY'),
-                                         base_url='https://api.groq.com/openai/v1'),
-                          [os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile')]))
-    last_error = None
-    for name, api, models in providers:
-        for model in dict.fromkeys(models):
+            base_url='https://api.groq.com/openai/v1'),
+            [os.getenv('GROQ_MODEL', 'openai/gpt-oss-20b'),
+             'openai/gpt-oss-120b']))
+    errors = []
+    for name, api, configured_models in providers:
+        try:
+            listed = api.models.list()
+            available = {m.id for m in listed.data}
+            print(f'[INFO] {name}: model listing succeeded; {len(available)} models available', flush=True)
+            models = [m for m in dict.fromkeys(configured_models) if m in available]
+            if not models:
+                print(f'[WARN] {name}: none of the configured models are available; '
+                      f'listed model IDs: {", ".join(sorted(available)[:12])}', flush=True)
+                errors.append(f'{name}: configured models not available')
+                continue
+        except Exception as exc:
+            status = getattr(exc, 'status_code', None)
+            print(f'[WARN] {name}: models.list failed ({type(exc).__name__}, HTTP {status}); '
+                  'will try configured models', flush=True)
+            models = list(dict.fromkeys(configured_models))
+        for model in models:
             try:
                 print(f'[INFO] AI request: {name}, model={model}', flush=True)
                 response = api.chat.completions.create(
@@ -204,12 +220,12 @@ def ai_json(client: OpenAI, instructions: str, payload: str) -> dict:
                 return parse_json(content)
             except Exception as exc:
                 status = getattr(exc, 'status_code', None)
-                if status not in (404, 429):
+                if status not in (400, 404, 429):
                     raise
-                last_error = exc
-                print(f'[WARN] {name} model {model} unavailable (HTTP {status}); trying next option',
+                errors.append(f'{name}/{model}: HTTP {status}')
+                print(f'[WARN] {name} model {model}: HTTP {status}; trying next option',
                       file=sys.stderr, flush=True)
-    raise RuntimeError('No configured AI model is available (404/429); check Gemini model access and free-tier limits') from last_error
+    raise RuntimeError('AI provider attempts failed: ' + '; '.join(errors))
 
 
 def ai_client() -> OpenAI:
