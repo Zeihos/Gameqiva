@@ -1,0 +1,30 @@
+name: Ошибка
+description: Сообщить о сбое GAMEQIVA
+title: "[Ошибка] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Что произошло?
+      description: Опишите фактический результат.
+      placeholder: При публикации возникла ошибка...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Как должно работать?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Шаги для воспроизведения
+      description: Не публикуйте токены и другие секреты.
+    validations:
+      required: true
+  - type: input
+    id: run
+    attributes:
+      label: Ссылка на GitHub Actions (если есть)
