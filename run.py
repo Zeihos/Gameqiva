@@ -440,7 +440,10 @@ def run() -> int:
     incomplete = [(key, value) for key, value in posts.items()
                   if value.get('text') and not (value.get('vk_id') and value.get('tg_id'))
                   and datetime.fromisoformat(value.get('created_utc', datetime.now(timezone.utc).isoformat()))
-                  >= datetime.now(timezone.utc) - timedelta(hours=24)]
+                  >= datetime.now(timezone.utc) - timedelta(hours=24)
+                  and (not value.get('last_vk_attempt_utc') or
+                       datetime.fromisoformat(value['last_vk_attempt_utc'])
+                       <= datetime.now(timezone.utc) - timedelta(hours=3))]
     picture = None
     if incomplete and not DRY_RUN:
         key, record = incomplete[0]
@@ -526,6 +529,8 @@ def run() -> int:
             print('[OK] Published to VK, post ID:', record['vk_id'])
         except Exception as exc:
             failed = True
+            record['last_vk_attempt_utc'] = datetime.now(timezone.utc).isoformat()
+            save_state(state)
             print('[ERROR] VK:', type(exc).__name__, str(exc)[:250], file=sys.stderr)
     if not record.get('tg_id'):
         try:
