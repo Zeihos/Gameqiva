@@ -6,7 +6,8 @@
 
 Автоматический сбор, проверка и публикация новостей игровой индустрии в VK и Telegram.
 
-[![Публикация](https://github.com/Zeihos/Gameqiva/actions/workflows/autopost.yml/badge.svg?branch=main)](https://github.com/Zeihos/Gameqiva/actions/workflows/autopost.yml)
+[![Автопубликация](https://github.com/Zeihos/Gameqiva/actions/workflows/autopost.yml/badge.svg?branch=main)](https://github.com/Zeihos/Gameqiva/actions/workflows/autopost.yml)
+[![Тесты](https://github.com/Zeihos/Gameqiva/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Zeihos/Gameqiva/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)
 ![Язык](https://img.shields.io/badge/язык-русский-6C5CE7)
 ![RSS](https://img.shields.io/badge/RSS-51_источник-EE802F?logo=rss&logoColor=white)
@@ -93,6 +94,9 @@ Telegram-канал `@gameqivo` и короткое имя сообщества 
 
 ## Разработка и тесты
 
+Для проверки изменений без отправки новостей настроен отдельный workflow **[Проверка кода](https://github.com/Zeihos/Gameqiva/actions/workflows/ci.yml)**. Он запускается при изменениях Python-файлов и зависимостей в push/PR. Основной workflow отвечает за публикацию. Пример локальной конфигурации — [`.env.example`](.env.example); реальные значения храните только в `.env` или GitHub Secrets.
+
+
 Требуется Python 3.12+.
 
 ```bash
@@ -113,7 +117,8 @@ python -m unittest -q test_editorial test_editorial_safety test_rss_collector te
 | `feed_health.py` | Диагностика источников |
 | `data/state.json` | Состояние опубликованных и незавершённых постов |
 | `test_*.py` | Автоматические тесты |
-| `.github/workflows/autopost.yml` | Расписание и CI |
+| `.github/workflows/autopost.yml` | Расписание и публикация |
+| `.github/workflows/ci.yml` | Независимая проверка кода |
 
 ## Диагностика
 
