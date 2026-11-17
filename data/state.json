@@ -9,6 +9,16 @@
       "title": "First details on MLB The Show 27",
       "vk_id": "12",
       "tg_id": "20"
+    },
+    "49e988fe944963bc5d3565b3": {
+      "url": "https://blogs.nvidia.com/blog/ian-buck-sc26/",
+      "image_url": "https://blogs.nvidia.com/wp-content/uploads/2026/11/Buck-Talk-SC26-scaled.jpeg",
+      "text": "Ian Buck объявил о новых инструментах для AI‑агентов на SC26\n\nНа конференции SC26 в Чикаго Иэн Бак представил Nemotron for Science, новый GPU Rubin HPC и расширенную платформу Vera CPU. Он подчеркнул роль агентов в научных исследованиях, показав пример с лабораторией Argonne, где агент нашёл два новых связывающих участка. Также объявлена совместная работа с IBM и Fermilab по квантовым вычислениям, а новый алгоритм TCBP‑JOBS сокращает время декодирования ошибок до 45 минут.",
+      "created_utc": "2026-11-17T17:55:05.314596+00:00",
+      "topic_key": "e91832de0a758ad40503b1f7",
+      "title": "Ian Buck Kicks Off NVIDIA’s Week at SC26 as Science Enters the Age of Agents",
+      "vk_id": "13",
+      "tg_id": "21"
     }
   }
 }
