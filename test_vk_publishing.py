@@ -43,7 +43,7 @@ class VKPublishingTests(unittest.TestCase):
 class TelegramCaptionTests(unittest.TestCase):
     def test_source_link_is_added_to_caption(self):
         caption = run.telegram_caption('Новость', 'https://example.com/news')
-        self.assertEqual(caption, 'Новость\\n\\nИсточник: https://example.com/news')
+        self.assertEqual(caption, 'Новость\n\nИсточник: https://example.com/news')
 
     def test_rejects_untrusted_source(self):
         with self.assertRaisesRegex(RuntimeError, 'verified HTTPS'):
@@ -57,7 +57,7 @@ class TelegramCaptionTests(unittest.TestCase):
         from unittest.mock import Mock
         response = Mock(status_code=200)
         response.json.return_value = {'ok': True, 'result': {'message_id': 21}}
-        with patch.dict(os.environ, {'TG_BOT_TOKEN': 'test', 'TG_CHAT_ID': '@gameqivo'}), \\
+        with patch.dict(os.environ, {'TG_BOT_TOKEN': 'test', 'TG_CHAT_ID': '@gameqivo'}), \
              patch.object(run.HTTP, 'post', return_value=response) as post:
             message_id = run.post_telegram('Новость', b'jpeg', 'https://example.com/news')
         self.assertEqual(message_id, '21')
