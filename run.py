@@ -304,8 +304,8 @@ def make_copy(article: dict, client: OpenAI) -> str:
     raise RuntimeError('Generated copy failed validation after 2 attempts')
 
 
-def vk_call(method: str, params: dict) -> dict:
-    token = required('VK_USER_TOKEN')
+def vk_call(method: str, params: dict, token: str | None = None) -> dict:
+    token = token or required('VK_USER_TOKEN')
     payload = {**params, 'access_token': token, 'v': '5.199'}
     response = HTTP.post('https://api.vk.com/method/' + method, data=payload, timeout=30)
     response.raise_for_status()
@@ -340,20 +340,48 @@ def resolve_vk_group_id() -> str:
     return str(object_id)
 
 
-def post_vk(text: str, picture: bytes) -> str:
+def post_vk(text: str, picture: bytes, source_url: str = '') -> str:
+    """Post to VK with a photo where permitted, otherwise use a source-linked text post.
+
+    VK community tokens cannot access photos.getWallUploadServer (error 27).
+    VK_PHOTO_USER_TOKEN optionally supplies a separate user token for wall photos.
+    The community token is retained for wall.post.
+    """
     group_id = resolve_vk_group_id()
-    upload = vk_call('photos.getWallUploadServer', {'group_id': group_id})
-    # The VK upload endpoint is returned dynamically by VK. Do not send tokens to this URL.
-    photo = HTTP.post(upload['upload_url'], files={'photo': ('gameqiva.jpg', io.BytesIO(picture))}, timeout=45)
-    photo.raise_for_status()
-    uploaded = photo.json()
-    saved = vk_call('photos.saveWallPhoto', {'group_id': group_id, 'photo': uploaded['photo'],
-                                            'server': uploaded['server'], 'hash': uploaded['hash']})
-    if not saved:
-        raise RuntimeError('VK photo upload succeeded but no photo returned')
-    att = f'photo{saved[0]["owner_id"]}_{saved[0]["id"]}'
+    user_token = os.getenv('VK_PHOTO_USER_TOKEN', '').strip()
+    if user_token:
+        try:
+            upload = vk_call('photos.getWallUploadServer', {'group_id': group_id},
+                             token=user_token)
+            photo = HTTP.post(upload['upload_url'],
+                              files={'photo': ('gameqiva.jpg', io.BytesIO(picture))},
+                              timeout=45)
+            photo.raise_for_status()
+            uploaded = photo.json()
+            saved = vk_call('photos.saveWallPhoto',
+                            {'group_id': group_id, 'photo': uploaded['photo'],
+                             'server': uploaded['server'], 'hash': uploaded['hash']},
+                            token=user_token)
+            if not saved:
+                raise RuntimeError('VK photo upload succeeded but no photo returned')
+            att = f'photo{saved[0]["owner_id"]}_{saved[0]["id"]}'
+            result = vk_call('wall.post', {'owner_id': -int(group_id), 'from_group': 1,
+                                          'message': text, 'attachments': att})
+            return str(result['post_id'])
+        except RuntimeError as exc:
+            # Authentication or permission failures on the optional photo token
+            # should not block a valid text post with the community token.
+            if not re.search(r'VK photos\\.(getWallUploadServer|saveWallPhoto) error (5|15|27):', str(exc)):
+                raise
+            print('[WARN] VK photo token cannot upload wall photos. '
+                  'Falling back to text post with source link.', flush=True)
+    else:
+        print('[INFO] No separate VK_PHOTO_USER_TOKEN: '
+              'publishing VK text post with original source URL.', flush=True)
+    if not source_url.startswith('https://'):
+        raise RuntimeError('Cannot publish VK text fallback without verified HTTPS source URL')
     result = vk_call('wall.post', {'owner_id': -int(group_id), 'from_group': 1,
-                                  'message': text, 'attachments': att})
+                                  'message': f'{text}\\n\\nИсточник: {source_url}'})
     return str(result['post_id'])
 
 
@@ -493,7 +521,7 @@ def run() -> int:
     failed = False
     if not record.get('vk_id'):
         try:
-            record['vk_id'] = post_vk(text, picture)
+            record['vk_id'] = post_vk(text, picture, article['url'])
             save_state(state)
             print('[OK] Published to VK, post ID:', record['vk_id'])
         except Exception as exc:
