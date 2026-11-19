@@ -109,6 +109,16 @@
       "title": "Nintendo eShop Highlights – 19/11/2026",
       "vk_id": "22",
       "tg_id": "31"
+    },
+    "36bc207225e9e41f8c82581f": {
+      "url": "https://blogs.nvidia.com/blog/microsoft-ignite-accelerated-computing-azure-windows-pcs/",
+      "image_url": "https://blogs.nvidia.com/wp-content/uploads/2026/11/nvidia-microsoft.png",
+      "text": "NVIDIA и Microsoft расширяют ускоренное вычисление от Azure до Windows PC\n\nНа Microsoft Ignite NVIDIA и Microsoft объявили расширение совместной работы: теперь виртуальные машины Azure с NVIDIA Vera Rubin NVL72 доступны шире, а через Microsoft Foundry клиенты могут настраивать открытые модели и запускать ИИ на границе сети. Кроме того, Windows PC‑ы с GPU RTX Spark будут поддерживать локальные модели, а Cloud PC‑ы получат ускоренную графику и потоковую передачу.",
+      "created_utc": "2026-11-19T20:39:26.966141+00:00",
+      "topic_key": "8f3ba806a54b0a3cd9c74568",
+      "title": "NVIDIA and Microsoft Expand Accelerated Computing From Azure to Windows PCs",
+      "vk_id": "26",
+      "tg_id": "32"
     }
   }
 }
