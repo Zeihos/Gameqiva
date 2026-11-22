@@ -386,13 +386,18 @@ def post_vk(text: str, picture: bytes, source_url: str = '') -> str:
 
 
 def telegram_caption(text: str, source_url: str) -> str:
-    """Add verifiable attribution while respecting Telegram's photo-caption limit."""
-    if not source_url.startswith('https://') or not urlparse(source_url).hostname:
+    """Fit a sourced caption within Telegram's 1024-character photo limit."""
+    parsed = urlparse(source_url)
+    if parsed.scheme != 'https' or not parsed.hostname:
         raise RuntimeError('Telegram post requires a verified HTTPS source URL')
-    caption = f'{text}\n\nИсточник: {source_url}'
-    if len(caption) > 1024:
-        raise RuntimeError('Telegram caption with source exceeds 1024 characters')
-    return caption
+    suffix = f'\n\nИсточник: {source_url}'
+    budget = 1024 - len(suffix)
+    if budget < 40:
+        raise RuntimeError('Telegram source URL is too long for a photo caption')
+    if len(text) > budget:
+        shortened = text[:budget - 1].rsplit(' ', 1)[0].rstrip()
+        text = (shortened or text[:budget - 1]).rstrip(' .,;:') + '…'
+    return text + suffix
 
 
 def post_telegram(text: str, picture: bytes, source_url: str) -> str:
@@ -465,9 +470,12 @@ def run() -> int:
                   if value.get('text') and not (value.get('vk_id') and value.get('tg_id'))
                   and datetime.fromisoformat(value.get('created_utc', datetime.now(timezone.utc).isoformat()))
                   >= datetime.now(timezone.utc) - timedelta(hours=24)
-                  and (not value.get('last_vk_attempt_utc') or
+                  and (not value.get('last_vk_attempt_utc') or value.get('vk_id') or
                        datetime.fromisoformat(value['last_vk_attempt_utc'])
-                       <= datetime.now(timezone.utc) - timedelta(hours=3))]
+                       <= datetime.now(timezone.utc) - timedelta(hours=1))
+                  and (not value.get('last_tg_attempt_utc') or value.get('tg_id') or
+                       datetime.fromisoformat(value['last_tg_attempt_utc'])
+                       <= datetime.now(timezone.utc) - timedelta(hours=1))]
     picture = None
     if incomplete and not DRY_RUN:
         key, record = incomplete[0]
@@ -566,6 +574,8 @@ def run() -> int:
             print('[OK] Published to Telegram, message ID:', record['tg_id'])
         except Exception as exc:
             failed = True
+            record['last_tg_attempt_utc'] = datetime.now(timezone.utc).isoformat()
+            save_state(state)
             print('[ERROR] Telegram:', type(exc).__name__, str(exc)[:250], file=sys.stderr)
     return 1 if failed else 0
 
