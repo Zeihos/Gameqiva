@@ -91,7 +91,8 @@ class EditorialTests(unittest.TestCase):
         self.assertTrue(all(len(text) >= 80 for text in run.EVERGREEN_POSTS))
 
     def test_pending_evergreen_detects_partial_crosspost(self):
-        posts = {'evergreen-1': {'kind': 'evergreen', 'vk_id': '4', 'tg_id': None}}
+        posts = {'evergreen-1': {'kind': 'evergreen', 'vk_id': '4', 'tg_id': None,
+                                 'created_utc': datetime.now(timezone.utc).isoformat()}}
         self.assertTrue(run.pending_evergreen(posts))
         posts['evergreen-1']['tg_id'] = '8'
         self.assertFalse(run.pending_evergreen(posts))
