@@ -461,6 +461,59 @@ def select_official_candidates(candidates: list[dict], limit: int = 60) -> list[
     return official[:limit]
 
 
+EVERGREEN_POSTS = (
+    'Как не пропустить важные обновления игр? Проверяйте официальные страницы разработчиков и раздел новостей в магазине, где приобретена игра. Именно там обычно публикуют сведения об изменениях и исправлениях.',
+    'Перед установкой нового драйвера видеокарты полезно прочитать список изменений на сайте производителя. Если всё работает стабильно, необязательные обновления можно сначала оценить по исправлениям.',
+    'Для защиты игрового аккаунта используйте уникальный пароль и двухфакторную аутентификацию, если она доступна. Коды подтверждения и резервные ключи нельзя передавать другим людям.',
+    'При покупке игры проверьте системные требования, поддержку нужной платформы и региональные ограничения. Информацию лучше сверять на официальной странице магазина или разработчика.',
+    'Перед крупным обновлением игры стоит проверить свободное место на диске и наличие резервных копий сохранений. Облачная синхронизация не всегда заменяет отдельную резервную копию.',
+    'Если онлайн-игра не подключается, сначала проверьте официальную страницу состояния серверов. Проблема может быть связана с техническими работами, а не с вашим компьютером.',
+    'Скачивайте игровые модификации и программы только из источников, которым доверяете. Проверяйте разрешения, отзывы и совместимость с текущей версией игры.',
+)
+
+def publish_evergreen(state: dict) -> int:
+    """Publish a transparent evergreen tip when no verified breaking news is available."""
+    posts = state['posts']
+    now = datetime.now(timezone.utc)
+    slot = now.strftime('%Y-%m-%dT%H')
+    key = 'evergreen-' + slot
+    if key not in posts:
+        index = (int(now.timestamp()) // 3600) % len(EVERGREEN_POSTS)
+        posts[key] = {'title': 'Полезное от GAMEQIVA', 'text': 'Полезное от GAMEQIVA\\n\\n' + EVERGREEN_POSTS[index],
+                      'created_utc': now.isoformat(), 'vk_id': None, 'tg_id': None,
+                      'kind': 'evergreen'}
+        save_state(state)
+    record = posts[key]
+    failed = False
+    if not record.get('vk_id'):
+        try:
+            group_id = resolve_vk_group_id()
+            result = vk_call('wall.post', {'owner_id': -int(group_id), 'from_group': 1,
+                                           'message': record['text']})
+            record['vk_id'] = str(result['post_id'])
+            save_state(state)
+            print('[OK] Evergreen published to VK:', record['vk_id'])
+        except Exception as exc:
+            failed = True
+            print('[ERROR] VK evergreen:', type(exc).__name__, str(exc)[:200], file=sys.stderr)
+    if not record.get('tg_id'):
+        try:
+            token = required('TG_BOT_TOKEN')
+            response = HTTP.post('https://api.telegram.org/bot' + token + '/sendMessage',
+                                 data={'chat_id': required('TG_CHAT_ID'), 'text': record['text']}, timeout=30)
+            response.raise_for_status()
+            result = response.json()
+            if not result.get('ok'):
+                raise RuntimeError('Telegram rejected evergreen message')
+            record['tg_id'] = str(result['result']['message_id'])
+            save_state(state)
+            print('[OK] Evergreen published to Telegram:', record['tg_id'])
+        except Exception as exc:
+            failed = True
+            print('[ERROR] Telegram evergreen:', type(exc).__name__, str(exc)[:200], file=sys.stderr)
+    return 1 if failed else 0
+
+
 def run() -> int:
     # Fail early before any publishing if credentials are missing.
     if not (os.getenv('GEMINI_API_KEY', '').strip() or os.getenv('GROQ_API_KEY', '').strip()):
@@ -514,7 +567,7 @@ def run() -> int:
         print(f'[INFO] Candidates: {len(candidates)} total, {len(official)} official')
         if not official:
             print('[INFO] No fresh official stories available. Skipping.')
-            return 0
+            return 0 if DRY_RUN else publish_evergreen(state)
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(max_workers=6) as pool:
             collected = [a for a in pool.map(get_article, official) if a]
@@ -522,11 +575,11 @@ def run() -> int:
         print(f'[INFO] Parsed official articles: {len(collected)}')
         if not collected:
             print('[INFO] No trustworthy full official article with valid image URL. Skipping.')
-            return 0
+            return 0 if DRY_RUN else publish_evergreen(state)
         verified = [a for a in collected if importance_score(a) >= 55]
         if not verified:
             print('[INFO] No eligible official stories meeting editorial threshold. Skipping.')
-            return 0
+            return 0 if DRY_RUN else publish_evergreen(state)
         print(f'[INFO] Eligible verified official stories: {len(verified)}')
         validated_images = {}
         for candidate in verified[:20]:
@@ -536,11 +589,11 @@ def run() -> int:
         verified = [a for a in verified[:20] if a['url'] in validated_images]
         if not verified:
             print('[INFO] No eligible official story with a valid photo. Skipping.')
-            return 0
+            return 0 if DRY_RUN else publish_evergreen(state)
         article = choose_article(verified, client)
         if not article:
             print('[INFO] No sufficiently significant game news. Skipping.')
-            return 0
+            return 0 if DRY_RUN else publish_evergreen(state)
         text = make_copy(article, client)
         picture = validated_images[article['url']]
         key = id_for(article['url'])
