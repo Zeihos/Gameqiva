@@ -556,11 +556,8 @@ def run() -> int:
     state = load_state()
     posts = state['posts']
     client = ai_client() if has_ai else None
-    if not DRY_RUN and pending_evergreen(posts):
-        return publish_evergreen(state)
-    if not DRY_RUN and not has_ai:
-        return publish_evergreen(state)
-
+    # Resume unfinished news before tips. Previously a partial evergreen post
+    # could indefinitely take precedence over a verified news cross-post.
     # Retry a partially published item before considering anything new.
     incomplete = [(key, value) for key, value in posts.items()
                   if value.get('kind') != 'evergreen' and value.get('url')
@@ -580,6 +577,10 @@ def run() -> int:
         text = record['text']
         print('[INFO] Resuming partial cross-post:', record['url'])
     else:
+        if not DRY_RUN and pending_evergreen(posts):
+            return publish_evergreen(state)
+        if not DRY_RUN and not has_ai:
+            return publish_evergreen(state)
         if not DRY_RUN and published_in_current_hour(posts):
             print('[INFO] Already published during this UTC hour; skipping duplicate slot.')
             return 0
