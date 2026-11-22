@@ -45,6 +45,11 @@ class EditorialTests(unittest.TestCase):
         self.assertEqual([item['published'] for item in chosen],
                          ['2026-11-22T04:00:00+00:00', '2026-11-22T03:00:00+00:00'])
 
+    def test_evergreen_posts_are_distinct_and_nonempty(self):
+        self.assertGreaterEqual(len(run.EVERGREEN_POSTS), 7)
+        self.assertEqual(len(set(run.EVERGREEN_POSTS)), len(run.EVERGREEN_POSTS))
+        self.assertTrue(all(len(text) >= 80 for text in run.EVERGREEN_POSTS))
+
     def test_domain_validation(self):
         self.assertTrue(run.one_domain('https://blog.playstation.com/a', 'blog.playstation.com'))
         self.assertFalse(run.one_domain('https://blog.playstation.com.evil.example/a', 'blog.playstation.com'))
