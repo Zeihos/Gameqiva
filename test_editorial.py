@@ -30,6 +30,21 @@ class EditorialTests(unittest.TestCase):
                          'vk_id': None, 'tg_id': None}}
         self.assertFalse(run.published_in_current_hour(posts, now))
 
+    def test_official_sources_not_displaced_by_media(self):
+        media = [{'title': f'Media {i}', 'tier': 'media',
+                  'published': '2026-11-22T09:59:00+00:00'} for i in range(100)]
+        official = [{'title': 'Official one', 'tier': 'official',
+                     'published': '2026-11-22T09:00:00+00:00'}]
+        chosen = run.select_official_candidates(media + official)
+        self.assertEqual([item['title'] for item in chosen], ['Official one'])
+
+    def test_official_selection_prefers_newer_items(self):
+        items = [{'tier': 'official', 'published': f'2026-11-22T{hour:02d}:00:00+00:00'}
+                 for hour in range(5)]
+        chosen = run.select_official_candidates(items, limit=2)
+        self.assertEqual([item['published'] for item in chosen],
+                         ['2026-11-22T04:00:00+00:00', '2026-11-22T03:00:00+00:00'])
+
     def test_domain_validation(self):
         self.assertTrue(run.one_domain('https://blog.playstation.com/a', 'blog.playstation.com'))
         self.assertFalse(run.one_domain('https://blog.playstation.com.evil.example/a', 'blog.playstation.com'))
