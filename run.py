@@ -1,4 +1,4 @@
-"""GAMEQIVA | Autonomous, official-source-only VK + Telegram cross-poster.
+"""GAMEQIVA | Autonomous, source-attributed VK + Telegram cross-poster.
 
 This is a separate deployable application, NOT a ChatGPT scheduled-task integration.
 Sensitive credentials come only from environment/secrets.
@@ -268,7 +268,7 @@ def make_copy(article: dict, client: OpenAI) -> str:
             'article_text': article['article']}
     instructions = (
         'Ты редактор самостоятельного игрового новостного сообщества GAMEQIVA. '
-        'Напиши достоверный готовый русский пост для VK/Telegram по официальному материалу. '
+        'Напиши достоверный готовый русский пост для VK/Telegram по материалу указанного источника. '
         'Стиль живой новостной, не рекламный и не шаблонный. '
         'Строго: заголовок от 15 до 125 знаков и основной текст от 80 до 620 знаков; '
         'общая длина поста не более 700 знаков. Используй 1-3 коротких абзаца. '
@@ -461,6 +461,13 @@ def select_official_candidates(candidates: list[dict], limit: int = 60) -> list[
     return official[:limit]
 
 
+def ranked_news_candidates(candidates: list[dict], limit: int = 100) -> list[dict]:
+    """Rank all unpublished stories from official and independent reporting."""
+    return sorted(candidates, key=lambda item: (
+        importance_score(item), item['published'], item['url']
+    ), reverse=True)[:limit]
+
+
 EVERGREEN_POSTS = (
     'Как не пропустить важные обновления игр? Проверяйте официальные страницы разработчиков и раздел новостей в магазине, где приобретена игра. Именно там обычно публикуют сведения об изменениях и исправлениях.',
     'Перед установкой нового драйвера видеокарты полезно прочитать список изменений на сайте производителя. Если всё работает стабильно, необязательные обновления можно сначала оценить по исправлениям.',
@@ -580,45 +587,32 @@ def run() -> int:
         candidates = [c for c in fetch_candidates_parallel(hours)
                       if id_for(c['url']) not in posts and topic_key(c['title']) not in seen_topics]
         candidates = [c for c in candidates if not is_duplicate(c['title'], c['url'], posts.values())]
-        # Read publisher-owned stories first. Media feeds are discovery-only:
-        # never allow them to consume the limited article-fetch budget.
-        official = select_official_candidates(candidates)
-        print(f'[INFO] Candidates: {len(candidates)} total, {len(official)} official')
-        if not official:
-            print('[INFO] No fresh official stories available. Skipping.')
-            return 0 if DRY_RUN else publish_evergreen(state)
+        # Previous publications and near-duplicate stories were excluded above.
+        ranked = ranked_news_candidates(candidates)
+        print(f'[INFO] Unpublished news queue: {len(ranked)} candidates')
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(max_workers=6) as pool:
-            collected = [a for a in pool.map(get_article, official) if a]
-        collected.sort(key=importance_score, reverse=True)
-        print(f'[INFO] Parsed official articles: {len(collected)}')
-        if not collected:
-            print('[INFO] No trustworthy full official article with valid image URL. Skipping.')
-            return 0 if DRY_RUN else publish_evergreen(state)
-        verified = [a for a in collected if importance_score(a) >= 55]
-        if not verified:
-            print('[INFO] No eligible official stories meeting editorial threshold. Skipping.')
-            return 0 if DRY_RUN else publish_evergreen(state)
-        print(f'[INFO] Eligible verified official stories: {len(verified)}')
-        validated_images = {}
-        for candidate in verified[:20]:
+            collected = [a for a in pool.map(get_article, ranked) if a]
+        collected.sort(key=lambda item: (importance_score(item), item['published']), reverse=True)
+        print(f'[INFO] Readable unpublished articles: {len(collected)}')
+        article = None
+        picture = None
+        text = None
+        # Work down the queue instead of rejecting the entire news cycle.
+        for candidate in collected:
             photo = download_real_image(candidate['image_url'])
-            if photo:
-                validated_images[candidate['url']] = photo
-        verified = [a for a in verified[:20] if a['url'] in validated_images]
-        if not verified:
-            print('[INFO] No eligible official story with a valid photo. Skipping.')
+            if not photo:
+                continue
+            try:
+                draft = make_copy(candidate, client)
+            except Exception as exc:
+                print('[WARN] Draft failed:', candidate['url'], type(exc).__name__, flush=True)
+                continue
+            article, picture, text = candidate, photo, draft
+            break
+        if article is None:
+            print('[WARN] No publishable unused news remains; using evergreen fallback.')
             return 0 if DRY_RUN else publish_evergreen(state)
-        try:
-            article = choose_article(verified, client)
-            if not article:
-                print('[INFO] No sufficiently significant game news.')
-                return 0 if DRY_RUN else publish_evergreen(state)
-            text = make_copy(article, client)
-        except Exception as exc:
-            print('[WARN] AI editorial processing failed:', type(exc).__name__, flush=True)
-            return 0 if DRY_RUN else publish_evergreen(state)
-        picture = validated_images[article['url']]
         key = id_for(article['url'])
         record = {'url': article['url'], 'image_url': article['image_url'], 'text': text,
                   'created_utc': datetime.now(timezone.utc).isoformat(),
