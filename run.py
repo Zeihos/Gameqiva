@@ -118,7 +118,7 @@ def get_article(candidate: dict) -> dict | None:
             cover = soup.find('meta', attrs={'name': 'twitter:image'})
         image_url = str(cover.get('content', '')).strip() if cover else ''
         if not image_url.startswith('https://'):
-            return None
+            image_url = ''
         # Official article body. Avoid copying navigation, user comments and scripts.
         base = soup.find('article') or soup.find('main') or soup
         for tag in base.find_all(['nav', 'footer', 'header', 'script', 'style', 'aside']):
@@ -340,7 +340,7 @@ def resolve_vk_group_id() -> str:
     return str(object_id)
 
 
-def post_vk(text: str, picture: bytes, source_url: str = '') -> str:
+def post_vk(text: str, picture: bytes | None, source_url: str = '') -> str:
     """Post to VK with a photo where permitted, otherwise use a source-linked text post.
 
     VK community tokens cannot access photos.getWallUploadServer (error 27).
@@ -349,7 +349,7 @@ def post_vk(text: str, picture: bytes, source_url: str = '') -> str:
     """
     group_id = resolve_vk_group_id()
     user_token = os.getenv('VK_PHOTO_USER_TOKEN', '').strip()
-    if user_token:
+    if user_token and picture:
         try:
             upload = vk_call('photos.getWallUploadServer', {'group_id': group_id},
                              token=user_token)
@@ -376,8 +376,7 @@ def post_vk(text: str, picture: bytes, source_url: str = '') -> str:
             print('[WARN] VK photo token cannot upload wall photos. '
                   'Falling back to text post with source link.', flush=True)
     else:
-        print('[INFO] No separate VK_PHOTO_USER_TOKEN: '
-              'publishing VK text post with original source URL.', flush=True)
+        print('[INFO] VK photo upload unavailable; publishing source-linked text post.', flush=True)
     if not source_url.startswith('https://'):
         raise RuntimeError('Cannot publish VK text fallback without verified HTTPS source URL')
     result = vk_call('wall.post', {'owner_id': -int(group_id), 'from_group': 1,
@@ -400,13 +399,17 @@ def telegram_caption(text: str, source_url: str) -> str:
     return text + suffix
 
 
-def post_telegram(text: str, picture: bytes, source_url: str) -> str:
+def post_telegram(text: str, picture: bytes | None, source_url: str) -> str:
     token = required('TG_BOT_TOKEN')
     chat_id = required('TG_CHAT_ID')
     caption = telegram_caption(text, source_url)
-    response = HTTP.post('https://api.telegram.org/bot' + token + '/sendPhoto',
-                         data={'chat_id': chat_id, 'caption': caption},
-                         files={'photo': ('gameqiva.jpg', io.BytesIO(picture))}, timeout=45)
+    if picture:
+        response = HTTP.post('https://api.telegram.org/bot' + token + '/sendPhoto',
+                             data={'chat_id': chat_id, 'caption': caption},
+                             files={'photo': ('gameqiva.jpg', io.BytesIO(picture))}, timeout=45)
+    else:
+        response = HTTP.post('https://api.telegram.org/bot' + token + '/sendMessage',
+                             data={'chat_id': chat_id, 'text': caption}, timeout=45)
     if response.status_code != 200:
         raise RuntimeError(f'Telegram HTTP error {response.status_code}')
     data = response.json()
@@ -485,7 +488,9 @@ def publish_evergreen(state: dict) -> int:
     slot = now.strftime('%Y-%m-%dT%H')
     key = next((key for key, record in posts.items()
                 if record.get('kind') == 'evergreen'
-                and not (record.get('vk_id') and record.get('tg_id'))),
+                and not (record.get('vk_id') and record.get('tg_id'))
+                and datetime.fromisoformat(record.get('created_utc', '1970-01-01T00:00:00+00:00'))
+                    >= now - timedelta(hours=24)),
                'evergreen-' + slot)
     if key not in posts and published_in_current_hour(posts, now):
         print('[INFO] Already published during this UTC hour; evergreen skipped.')
@@ -529,8 +534,10 @@ def publish_evergreen(state: dict) -> int:
 
 def pending_evergreen(posts: dict) -> bool:
     """An unfinished evergreen post must be resumed before any new content."""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
     return any(record.get('kind') == 'evergreen' and
-               not (record.get('vk_id') and record.get('tg_id'))
+               not (record.get('vk_id') and record.get('tg_id')) and
+               datetime.fromisoformat(record.get('created_utc', '1970-01-01T00:00:00+00:00')) >= cutoff
                for record in posts.values())
 
 
@@ -552,7 +559,7 @@ def run() -> int:
 
     # Retry a partially published item before considering anything new.
     incomplete = [(key, value) for key, value in posts.items()
-                  if value.get('kind') != 'evergreen' and value.get('url') and value.get('image_url')
+                  if value.get('kind') != 'evergreen' and value.get('url')
                   and value.get('text') and not (value.get('vk_id') and value.get('tg_id'))
                   and datetime.fromisoformat(value.get('created_utc', datetime.now(timezone.utc).isoformat()))
                   >= datetime.now(timezone.utc) - timedelta(hours=24)
@@ -601,8 +608,6 @@ def run() -> int:
         # Work down the queue instead of rejecting the entire news cycle.
         for candidate in collected:
             photo = download_real_image(candidate['image_url'])
-            if not photo:
-                continue
             try:
                 draft = make_copy(candidate, client)
             except Exception as exc:
@@ -622,11 +627,10 @@ def run() -> int:
         if not DRY_RUN:
             posts[key] = record
             save_state(state)
-    if picture is None:
+    if picture is None and article.get('image_url'):
         picture = download_real_image(article['image_url'])
     if not picture:
-        print('[WARN] Official image unavailable; using evergreen fallback.', file=sys.stderr)
-        return 0 if DRY_RUN else publish_evergreen(state)
+        print('[INFO] No usable image: publishing source-linked text news.', flush=True)
     print('[NEWS]', article['url'])
     print('[COPY]\n' + text + '\n[IMAGE]', article['image_url'])
     if DRY_RUN:
