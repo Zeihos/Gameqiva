@@ -81,6 +81,22 @@ class EditorialTests(unittest.TestCase):
         save.assert_not_called()
         resolve.assert_not_called()
 
+    def test_stale_evergreen_does_not_block_new_news(self):
+        old = (datetime.now(timezone.utc) - timedelta(hours=26)).isoformat()
+        posts = {'old': {'kind': 'evergreen', 'created_utc': old,
+                         'vk_id': '1', 'tg_id': None}}
+        self.assertFalse(run.pending_evergreen(posts))
+
+    def test_telegram_text_news_fallback(self):
+        from unittest.mock import Mock
+        response = Mock(status_code=200)
+        response.json.return_value = {'ok': True, 'result': {'message_id': 123}}
+        with patch.object(run, 'required', side_effect=lambda k: k), \
+             patch.object(run.HTTP, 'post', return_value=response) as post:
+            self.assertEqual(run.post_telegram('News', None, 'https://example.com/news'), '123')
+        self.assertTrue(post.call_args.args[0].endswith('/sendMessage'))
+        self.assertIn('Источник:', post.call_args.kwargs['data']['text'])
+
     def test_domain_validation(self):
         self.assertTrue(run.one_domain('https://blog.playstation.com/a', 'blog.playstation.com'))
         self.assertFalse(run.one_domain('https://blog.playstation.com.evil.example/a', 'blog.playstation.com'))
