@@ -119,6 +119,14 @@
       "title": "NVIDIA and Microsoft Expand Accelerated Computing From Azure to Windows PCs",
       "vk_id": "26",
       "tg_id": "32"
+    },
+    "evergreen-2026-11-22T09": {
+      "title": "Полезное от GAMEQIVA",
+      "text": "Полезное от GAMEQIVA\n\nПеред крупным обновлением игры стоит проверить свободное место на диске и наличие резервных копий сохранений. Облачная синхронизация не всегда заменяет отдельную резервную копию.",
+      "created_utc": "2026-11-22T09:51:59.415105+00:00",
+      "vk_id": "30",
+      "tg_id": "34",
+      "kind": "evergreen"
     }
   }
 }
