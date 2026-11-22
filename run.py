@@ -600,7 +600,14 @@ def run() -> int:
         candidates = [c for c in candidates if not is_duplicate(c['title'], c['url'], posts.values())]
         # Previous publications and near-duplicate stories were excluded above.
         ranked = ranked_news_candidates(candidates)
-        print(f'[INFO] Unpublished news queue: {len(ranked)} candidates')
+        # The same announcement can appear in several feeds before publication.
+        # Keep the highest-ranked representative of each near-identical story.
+        unique = []
+        for candidate in ranked:
+            if not is_duplicate(candidate['title'], candidate['url'], unique):
+                unique.append(candidate)
+        ranked = unique
+        print(f'[INFO] Unpublished distinct news queue: {len(ranked)} candidates')
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(max_workers=6) as pool:
             collected = [a for a in pool.map(get_article, ranked) if a]
