@@ -6,6 +6,7 @@ import calendar
 import re
 import requests
 import feedparser
+from bs4 import BeautifulSoup
 from sources import SOURCES
 
 LOW_VALUE = ('podcast', 'share of the week', 'wallpaper', 'merch', 'community spotlight', 'sweepstakes')
@@ -34,7 +35,10 @@ def fetch_source(source, cutoff):
             timestamp = datetime.fromtimestamp(calendar.timegm(published), tz=timezone.utc)
             if not cutoff <= timestamp <= datetime.now(timezone.utc) + timedelta(minutes=10):
                 continue
-            results.append({'url': link, 'title': title, 'publisher': name,
+            summary_html = entry.get('summary', '') or ''
+            summary = BeautifulSoup(summary_html[:12000], 'html.parser').get_text(' ', strip=True)
+            summary = re.sub(r'\\s+', ' ', summary)[:2500]
+            results.append({'url': link, 'title': title, 'summary': summary, 'publisher': name,
                             'published': timestamp.isoformat(), 'domain': domain,
                             'tier': tier, 'category': category})
         print(f'[FEED] {name}: {len(parsed.entries)} entries, {len(results)} fresh')
