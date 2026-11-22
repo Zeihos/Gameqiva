@@ -454,6 +454,13 @@ def published_in_current_hour(posts: dict, now: datetime | None = None) -> bool:
     return False
 
 
+def select_official_candidates(candidates: list[dict], limit: int = 60) -> list[dict]:
+    """Official sources alone occupy the bounded article-fetch budget."""
+    official = [item for item in candidates if item.get('tier') == 'official']
+    official.sort(key=lambda item: item['published'], reverse=True)
+    return official[:limit]
+
+
 def run() -> int:
     # Fail early before any publishing if credentials are missing.
     if not (os.getenv('GEMINI_API_KEY', '').strip() or os.getenv('GROQ_API_KEY', '').strip()):
@@ -503,15 +510,14 @@ def run() -> int:
         candidates = [c for c in candidates if not is_duplicate(c['title'], c['url'], posts.values())]
         # Read publisher-owned stories first. Media feeds are discovery-only:
         # never allow them to consume the limited article-fetch budget.
-        official = [c for c in candidates if c.get('tier') == 'official']
-        official.sort(key=lambda c: c['published'], reverse=True)
+        official = select_official_candidates(candidates)
         print(f'[INFO] Candidates: {len(candidates)} total, {len(official)} official')
         if not official:
             print('[INFO] No fresh official stories available. Skipping.')
             return 0
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(max_workers=6) as pool:
-            collected = [a for a in pool.map(get_article, official[:60]) if a]
+            collected = [a for a in pool.map(get_article, official) if a]
         collected.sort(key=importance_score, reverse=True)
         print(f'[INFO] Parsed official articles: {len(collected)}')
         if not collected:
