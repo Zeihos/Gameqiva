@@ -50,6 +50,22 @@ class EditorialTests(unittest.TestCase):
         self.assertEqual(len(set(run.EVERGREEN_POSTS)), len(run.EVERGREEN_POSTS))
         self.assertTrue(all(len(text) >= 80 for text in run.EVERGREEN_POSTS))
 
+    def test_pending_evergreen_detects_partial_crosspost(self):
+        posts = {'evergreen-1': {'kind': 'evergreen', 'vk_id': '4', 'tg_id': None}}
+        self.assertTrue(run.pending_evergreen(posts))
+        posts['evergreen-1']['tg_id'] = '8'
+        self.assertFalse(run.pending_evergreen(posts))
+
+    def test_evergreen_hourly_cap_does_not_call_publishers(self):
+        now = datetime.now(timezone.utc)
+        state = {'posts': {'already': {'created_utc': now.isoformat(),
+                                     'vk_id': '42', 'tg_id': '8'}}}
+        with patch.object(run, 'save_state') as save, \
+             patch.object(run, 'resolve_vk_group_id') as resolve:
+            self.assertEqual(run.publish_evergreen(state), 0)
+        save.assert_not_called()
+        resolve.assert_not_called()
+
     def test_domain_validation(self):
         self.assertTrue(run.one_domain('https://blog.playstation.com/a', 'blog.playstation.com'))
         self.assertFalse(run.one_domain('https://blog.playstation.com.evil.example/a', 'blog.playstation.com'))
