@@ -476,7 +476,13 @@ def publish_evergreen(state: dict) -> int:
     posts = state['posts']
     now = datetime.now(timezone.utc)
     slot = now.strftime('%Y-%m-%dT%H')
-    key = 'evergreen-' + slot
+    key = next((key for key, record in posts.items()
+                if record.get('kind') == 'evergreen'
+                and not (record.get('vk_id') and record.get('tg_id'))),
+               'evergreen-' + slot)
+    if key not in posts and published_in_current_hour(posts, now):
+        print('[INFO] Already published during this UTC hour; evergreen skipped.')
+        return 0
     if key not in posts:
         index = (int(now.timestamp()) // 3600) % len(EVERGREEN_POSTS)
         posts[key] = {'title': 'Полезное от GAMEQIVA', 'text': 'Полезное от GAMEQIVA\n\n' + EVERGREEN_POSTS[index],
