@@ -36,7 +36,10 @@ def fetch_source(source, cutoff):
             if not cutoff <= timestamp <= datetime.now(timezone.utc) + timedelta(minutes=10):
                 continue
             summary_html = entry.get('summary', '') or ''
-            summary = BeautifulSoup(summary_html[:12000], 'html.parser').get_text(' ', strip=True)
+            summary_soup = BeautifulSoup(summary_html[:12000], 'html.parser')
+            for unsafe in summary_soup.find_all(['script', 'style']):
+                unsafe.decompose()
+            summary = summary_soup.get_text(' ', strip=True)
             summary = re.sub(r'\\s+', ' ', summary)[:2500]
             results.append({'url': link, 'title': title, 'summary': summary, 'publisher': name,
                             'published': timestamp.isoformat(), 'domain': domain,
