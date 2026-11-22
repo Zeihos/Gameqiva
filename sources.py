@@ -34,6 +34,9 @@ SOURCES = [
     ("Nintendo Life","https://www.nintendolife.com/feeds/latest","nintendolife.com","media","console"),
     ("Push Square","https://www.pushsquare.com/feeds/latest","pushsquare.com","media","console"),
     ("Pure Xbox","https://www.purexbox.com/feeds/latest","purexbox.com","media","console"),
+    # Russian-language technology reporting (media, not first-party announcements).
+    ("Hardwareluxx Russia","https://www.hardwareluxx.ru/rss.xml","hardwareluxx.ru","media","hardware"),
+    ("ProHiTech","https://prohitech.ru/feed/","prohitech.ru","media","technology"),
     ("TechPowerUp","https://www.techpowerup.com/rss/news","techpowerup.com","media","hardware"),
     ("Tom's Hardware","https://www.tomshardware.com/feeds/all","tomshardware.com","media","hardware"),
     ("The Verge","https://www.theverge.com/rss/index.xml","theverge.com","media","technology"),
