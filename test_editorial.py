@@ -60,6 +60,31 @@ class EditorialTests(unittest.TestCase):
         self.assertEqual(len(ranked), 20)
         self.assertEqual({a['url'] for a in ranked}, {a['url'] for a in items})
 
+    def test_queue_prefers_higher_priority_official_news(self):
+        now = datetime.now(timezone.utc).isoformat()
+        items = [
+            {'title': 'Small item', 'url': 'https://media.example/1',
+             'tier': 'media', 'published': now, 'article': '', 'image_url': ''},
+            {'title': 'Major game launch update', 'url': 'https://official.example/1',
+             'tier': 'official', 'published': now, 'article': '', 'image_url': ''},
+        ]
+        self.assertEqual(run.ranked_news_candidates(items)[0]['tier'], 'official')
+
+    def test_rss_summary_fallback_when_article_fetch_fails(self):
+        item = {'title': 'Update', 'url': 'https://example.com/news',
+                'domain': 'example.com', 'summary': 'Confirmed facts. ' * 20}
+        with patch.object(run.HTTP, 'get', side_effect=TimeoutError('blocked')):
+            article = run.get_article(item)
+        self.assertIsNotNone(article)
+        self.assertEqual(article['content_origin'], 'rss')
+        self.assertEqual(article['image_url'], '')
+
+    def test_short_rss_summary_cannot_be_used_as_article(self):
+        item = {'title': 'Update', 'url': 'https://example.com/news',
+                'domain': 'example.com', 'summary': 'Not enough information'}
+        with patch.object(run.HTTP, 'get', side_effect=TimeoutError('blocked')):
+            self.assertIsNone(run.get_article(item))
+
     def test_evergreen_posts_are_distinct_and_nonempty(self):
         self.assertGreaterEqual(len(run.EVERGREEN_POSTS), 7)
         self.assertEqual(len(set(run.EVERGREEN_POSTS)), len(run.EVERGREEN_POSTS))
