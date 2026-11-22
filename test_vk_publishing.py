@@ -49,9 +49,15 @@ class TelegramCaptionTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'verified HTTPS'):
             run.telegram_caption('Новость', 'http://example.com/news')
 
-    def test_rejects_caption_over_limit(self):
-        with self.assertRaisesRegex(RuntimeError, '1024'):
-            run.telegram_caption('А' * 1000, 'https://example.com/news')
+    def test_truncates_caption_over_limit_without_losing_source(self):
+        caption = run.telegram_caption('Очень важная новость ' * 100, 'https://example.com/news')
+        self.assertLessEqual(len(caption), 1024)
+        self.assertTrue(caption.endswith('Источник: https://example.com/news'))
+        self.assertIn('…', caption)
+
+    def test_rejects_extremely_long_source_url(self):
+        with self.assertRaisesRegex(RuntimeError, 'too long'):
+            run.telegram_caption('Новость', 'https://example.com/' + 'x' * 1000)
 
     def test_telegram_photo_uses_source_caption(self):
         from unittest.mock import Mock
