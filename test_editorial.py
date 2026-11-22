@@ -70,6 +70,13 @@ class EditorialTests(unittest.TestCase):
         self.assertTrue(run.one_domain('https://blog.playstation.com/a', 'blog.playstation.com'))
         self.assertFalse(run.one_domain('https://blog.playstation.com.evil.example/a', 'blog.playstation.com'))
 
+    def test_russian_tech_sources_registered(self):
+        sources = {source[0]: source for source in run.SOURCES}
+        self.assertEqual(sources['Hardwareluxx Russia'][2], 'hardwareluxx.ru')
+        self.assertEqual(sources['ProHiTech'][2], 'prohitech.ru')
+        self.assertEqual(sources['Hardwareluxx Russia'][3], 'media')
+        self.assertEqual(sources['ProHiTech'][3], 'media')
+
     def test_source_tiers(self):
         self.assertTrue(all(s[3] in ('official', 'media') for s in run.SOURCES))
 
