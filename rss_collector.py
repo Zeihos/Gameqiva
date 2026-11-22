@@ -40,7 +40,8 @@ def fetch_source(source, cutoff):
             for unsafe in summary_soup.find_all(['script', 'style']):
                 unsafe.decompose()
             summary = summary_soup.get_text(' ', strip=True)
-            summary = re.sub(r'\\s+', ' ', summary)[:2500]
+            summary = re.sub(r'\s+', ' ', summary)
+            summary = re.sub(r'\s+([.,!?;:])', r'\1', summary)[:2500]
             results.append({'url': link, 'title': title, 'summary': summary, 'publisher': name,
                             'published': timestamp.isoformat(), 'domain': domain,
                             'tier': tier, 'category': category})
