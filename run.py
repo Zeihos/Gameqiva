@@ -433,6 +433,22 @@ def id_for(url: str) -> str:
     return hashlib.sha256(url.encode('utf-8')).hexdigest()[:24]
 
 
+def published_in_current_hour(posts: dict, now: datetime | None = None) -> bool:
+    """At most one new cross-post per UTC hour; incomplete posts can still resume."""
+    now = now or datetime.now(timezone.utc)
+    hour = now.astimezone(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    for post in posts.values():
+        if not (post.get('vk_id') or post.get('tg_id')):
+            continue
+        try:
+            created = datetime.fromisoformat(post['created_utc'])
+            if created.tzinfo is not None and created.astimezone(timezone.utc) >= hour:
+                return True
+        except (KeyError, ValueError, TypeError):
+            continue
+    return False
+
+
 def run() -> int:
     # Fail early before any publishing if credentials are missing.
     if not (os.getenv('GEMINI_API_KEY', '').strip() or os.getenv('GROQ_API_KEY', '').strip()):
@@ -459,6 +475,9 @@ def run() -> int:
         text = record['text']
         print('[INFO] Resuming partial cross-post:', record['url'])
     else:
+        if not DRY_RUN and published_in_current_hour(posts):
+            print('[INFO] Already published during this UTC hour; skipping duplicate slot.')
+            return 0
         # Allow a wider lookback ONLY for manual DRY RUN diagnostics.
         # Live posting is always limited to the last 24 hours.
         hours = 24
