@@ -107,8 +107,10 @@ def fetch_candidates(hours: int = 24) -> list[dict]:
 
 
 def get_article(candidate: dict) -> dict | None:
+    """Read publisher article; use substantive publisher RSS excerpt if site blocks scraping."""
+    summary = candidate.get('summary', '').strip()
     try:
-        response = HTTP.get(candidate['url'], timeout=25)
+        response = HTTP.get(candidate['url'], timeout=(5, 12))
         response.raise_for_status()
         if not one_domain(response.url, candidate['domain']):
             return None
@@ -119,19 +121,21 @@ def get_article(candidate: dict) -> dict | None:
         image_url = str(cover.get('content', '')).strip() if cover else ''
         if not image_url.startswith('https://'):
             image_url = ''
-        # Official article body. Avoid copying navigation, user comments and scripts.
         base = soup.find('article') or soup.find('main') or soup
         for tag in base.find_all(['nav', 'footer', 'header', 'script', 'style', 'aside']):
             tag.decompose()
         parts = [tag.get_text(' ', strip=True) for tag in base.find_all(['p', 'h2', 'h3'])]
-        useful = [p for p in parts if len(p) > 38]
-        body = '\n'.join(useful)[:11000]
-        if len(body) < 300:
-            return None  # Insufficient material for verified original copy.
-        return {**candidate, 'article': body, 'image_url': image_url}
+        body = '\n'.join(p for p in parts if len(p) > 38)[:11000]
+        if len(body) >= 300:
+            return {**candidate, 'article': body, 'image_url': image_url}
     except Exception as exc:
-        print(f'[WARN] Article fetch failed: {candidate["url"]}: {type(exc).__name__}: {exc}', file=sys.stderr)
-        return None
+        print(f'[WARN] Article fetch failed: {candidate["url"]}: {type(exc).__name__}',
+              file=sys.stderr)
+    # The feed itself belongs to the allowed publisher domain. Never invent facts
+    # from a headline alone; require enough publisher-authored summary content.
+    if len(summary) >= 220:
+        return {**candidate, 'article': summary, 'image_url': '', 'content_origin': 'rss'}
+    return None
 
 
 def download_real_image(url: str) -> bytes | None:
