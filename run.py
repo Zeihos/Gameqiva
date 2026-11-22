@@ -479,7 +479,7 @@ def publish_evergreen(state: dict) -> int:
     key = 'evergreen-' + slot
     if key not in posts:
         index = (int(now.timestamp()) // 3600) % len(EVERGREEN_POSTS)
-        posts[key] = {'title': 'Полезное от GAMEQIVA', 'text': 'Полезное от GAMEQIVA\\n\\n' + EVERGREEN_POSTS[index],
+        posts[key] = {'title': 'Полезное от GAMEQIVA', 'text': 'Полезное от GAMEQIVA\n\n' + EVERGREEN_POSTS[index],
                       'created_utc': now.isoformat(), 'vk_id': None, 'tg_id': None,
                       'kind': 'evergreen'}
         save_state(state)
@@ -608,8 +608,8 @@ def run() -> int:
     if picture is None:
         picture = download_real_image(article['image_url'])
     if not picture:
-        print('[ERROR] Official image unavailable. Publishing prevented.', file=sys.stderr)
-        return 1 if not DRY_RUN else 0
+        print('[WARN] Official image unavailable; using evergreen fallback.', file=sys.stderr)
+        return 0 if DRY_RUN else publish_evergreen(state)
     print('[NEWS]', article['url'])
     print('[COPY]\n' + text + '\n[IMAGE]', article['image_url'])
     if DRY_RUN:
