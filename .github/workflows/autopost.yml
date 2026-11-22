@@ -1,8 +1,9 @@
 name: GAMEQIVA Auto Publish
 on:
   schedule:
-    # Hourly in UTC (also hourly in Krasnoyarsk, UTC+7).
-    - cron: '0 * * * *'
+    # Hourly at minute 17 UTC (minute 17 in Krasnoyarsk, UTC+7).
+    # Avoid the busiest top-of-hour GitHub Actions scheduling window.
+    - cron: '17 * * * *'
   workflow_dispatch:
     inputs:
       publish:
@@ -56,12 +57,23 @@ jobs:
           PREVIEW_HOURS: ${{ github.event_name == 'workflow_dispatch' && inputs.publish != true && inputs.preview_hours || '24' }}
         run: python run.py
       - name: Save publication state across runs
-        if: always()
+        if: always() && (github.event_name == 'schedule' || inputs.publish == true)
         run: |
           git config user.name 'gameqiva-autopost[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add data/state.json
           if ! git diff --cached --quiet; then
             git commit -m 'chore: update GAMEQIVA publication state [skip ci]'
-            git push
+            # A push can race with a documentation change or another commit.
+            # Replay the state commit on top of main, never force-push.
+            for attempt in 1 2 3; do
+              if git push origin HEAD:main; then
+                exit 0
+              fi
+              git fetch origin main
+              git rebase origin/main || exit 1
+              sleep 3
+            done
+            echo 'Failed to persist publication state after three attempts' >&2
+            exit 1
           fi
