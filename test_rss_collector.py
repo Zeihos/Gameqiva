@@ -20,6 +20,21 @@ class RSSCollectorTests(unittest.TestCase):
         self.assertEqual(len(items), 1)
         self.assertEqual(items[0]['tier'], 'official')
 
+    def test_sanitized_rss_summary_is_kept(self):
+        now = datetime.now(timezone.utc)
+        stamp = now.strftime('%a, %d %b %Y %H:%M:%S GMT')
+        xml = (f'<rss version="2.0"><channel><title>Test</title>'
+               f'<item><title>Game update</title><link>https://example.com/a</link>'
+               f'<pubDate>{stamp}</pubDate>'
+               '<description><![CDATA[<p>Confirmed update <b>details</b>.</p>'
+               '<script>evil()</script>]]></description></item></channel></rss>').encode()
+        with patch('rss_collector.requests.get', return_value=Mock(content=xml)):
+            items = rss_collector.fetch_source(('Example', 'https://example.com/feed',
+                                                'example.com', 'media', 'pc'),
+                                               now - timedelta(hours=24))
+        self.assertIn('Confirmed update details.', items[0]['summary'])
+        self.assertNotIn('<script>', items[0]['summary'])
+
     def test_reject_external_domain(self):
         now = datetime.now(timezone.utc)
         stamp = now.strftime('%a, %d %b %Y %H:%M:%S GMT')
