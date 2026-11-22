@@ -514,20 +514,33 @@ def publish_evergreen(state: dict) -> int:
     return 1 if failed else 0
 
 
+def pending_evergreen(posts: dict) -> bool:
+    """An unfinished evergreen post must be resumed before any new content."""
+    return any(record.get('kind') == 'evergreen' and
+               not (record.get('vk_id') and record.get('tg_id'))
+               for record in posts.values())
+
+
 def run() -> int:
     # Fail early before any publishing if credentials are missing.
-    if not (os.getenv('GEMINI_API_KEY', '').strip() or os.getenv('GROQ_API_KEY', '').strip()):
-        raise RuntimeError('Missing GEMINI_API_KEY or GROQ_API_KEY')
+    has_ai = bool(os.getenv('GEMINI_API_KEY', '').strip() or os.getenv('GROQ_API_KEY', '').strip())
+    if not has_ai:
+        print('[WARN] No AI key configured; using factual evergreen content.', flush=True)
     if not DRY_RUN:
         for k in ('VK_USER_TOKEN', 'TG_BOT_TOKEN', 'TG_CHAT_ID'):
             required(k)
     state = load_state()
     posts = state['posts']
-    client = ai_client()
+    client = ai_client() if has_ai else None
+    if not DRY_RUN and pending_evergreen(posts):
+        return publish_evergreen(state)
+    if not DRY_RUN and not has_ai:
+        return publish_evergreen(state)
 
     # Retry a partially published item before considering anything new.
     incomplete = [(key, value) for key, value in posts.items()
-                  if value.get('text') and not (value.get('vk_id') and value.get('tg_id'))
+                  if value.get('kind') != 'evergreen' and value.get('url') and value.get('image_url')
+                  and value.get('text') and not (value.get('vk_id') and value.get('tg_id'))
                   and datetime.fromisoformat(value.get('created_utc', datetime.now(timezone.utc).isoformat()))
                   >= datetime.now(timezone.utc) - timedelta(hours=24)
                   and (not value.get('last_vk_attempt_utc') or value.get('vk_id') or
@@ -590,11 +603,15 @@ def run() -> int:
         if not verified:
             print('[INFO] No eligible official story with a valid photo. Skipping.')
             return 0 if DRY_RUN else publish_evergreen(state)
-        article = choose_article(verified, client)
-        if not article:
-            print('[INFO] No sufficiently significant game news. Skipping.')
+        try:
+            article = choose_article(verified, client)
+            if not article:
+                print('[INFO] No sufficiently significant game news.')
+                return 0 if DRY_RUN else publish_evergreen(state)
+            text = make_copy(article, client)
+        except Exception as exc:
+            print('[WARN] AI editorial processing failed:', type(exc).__name__, flush=True)
             return 0 if DRY_RUN else publish_evergreen(state)
-        text = make_copy(article, client)
         picture = validated_images[article['url']]
         key = id_for(article['url'])
         record = {'url': article['url'], 'image_url': article['image_url'], 'text': text,
