@@ -122,6 +122,27 @@ class EditorialTests(unittest.TestCase):
         self.assertTrue(post.call_args.args[0].endswith('/sendMessage'))
         self.assertIn('Источник:', post.call_args.kwargs['data']['text'])
 
+    def test_partial_news_is_resumed_before_pending_tip(self):
+        now = datetime.now(timezone.utc).isoformat()
+        state = {'posts': {
+            'tip': {'kind': 'evergreen', 'created_utc': now, 'vk_id': '3', 'tg_id': None},
+            'news': {'url': 'https://example.com/story', 'image_url': '',
+                     'text': 'Verified article text', 'created_utc': now,
+                     'vk_id': '5', 'tg_id': None},
+        }}
+        with patch.object(run, 'DRY_RUN', False), \
+             patch.object(run, 'load_state', return_value=state), \
+             patch.object(run, 'required', side_effect=lambda k: k), \
+             patch.object(run, 'ai_client', return_value=object()), \
+             patch.dict(run.os.environ, {'GEMINI_API_KEY': 'test'}, clear=False), \
+             patch.object(run, 'publish_evergreen') as evergreen, \
+             patch.object(run, 'post_telegram', return_value='77') as telegram, \
+             patch.object(run, 'save_state'):
+            self.assertEqual(run.run(), 0)
+        evergreen.assert_not_called()
+        telegram.assert_called_once()
+        self.assertEqual(state['posts']['news']['tg_id'], '77')
+
     def test_domain_validation(self):
         self.assertTrue(run.one_domain('https://blog.playstation.com/a', 'blog.playstation.com'))
         self.assertFalse(run.one_domain('https://blog.playstation.com.evil.example/a', 'blog.playstation.com'))
