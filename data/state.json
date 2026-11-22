@@ -145,6 +145,16 @@
       "title": "Dungeon Fighter Online’s latest update adds the Imperial Guard class and a harder difficulty for an instance",
       "vk_id": "32",
       "tg_id": "36"
+    },
+    "70f606efa9d0e30260da36c9": {
+      "url": "https://www.engadget.com/2319544/free-app-connects-android-phone-windows-pc-wirelessly-plainapp/",
+      "image_url": "https://www.engadget.com/img/gallery/this-free-app-connects-your-android-phone-to-your-windows-pc-wirelessly/l-intro-1794633420.jpg",
+      "text": "Free Open-Source App Lets You Wirelessly Manage Android Files from PC\n\nPlainApp – бесплатное открытое приложение, которое позволяет управлять файлами Android‑устройства через Wi‑Fi без установки дополнительного ПО на ПК. После установки на телефон, открывается веб‑интерфейс, доступный по URL в той же сети.\nВ браузере можно просматривать, загружать и перемещать файлы, редактировать изображения, слушать музыку и даже зеркалить экран телефона. Приложение использует самоподписанный TLS‑сертификат, поэтому при первом подключении браузер выдаёт предупреждение, которое можно обойти через «Продолжить».",
+      "created_utc": "2026-11-22T22:34:34.540791+00:00",
+      "topic_key": "4ecf28d2d7ca93c110bcf3a8",
+      "title": "This free app connects your Android phone to your Windows PC wirelessly",
+      "vk_id": "34",
+      "tg_id": "37"
     }
   }
 }
