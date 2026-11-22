@@ -501,34 +501,35 @@ def run() -> int:
         candidates = [c for c in fetch_candidates_parallel(hours)
                       if id_for(c['url']) not in posts and topic_key(c['title']) not in seen_topics]
         candidates = [c for c in candidates if not is_duplicate(c['title'], c['url'], posts.values())]
-        candidates.sort(key=lambda c: (c.get('tier') == 'official', c['published']), reverse=True)
-        if not candidates:
-            print(f'[INFO] No new eligible RSS news in last {hours}h. No post sent. Skipping.')
+        # Read publisher-owned stories first. Media feeds are discovery-only:
+        # never allow them to consume the limited article-fetch budget.
+        official = [c for c in candidates if c.get('tier') == 'official']
+        official.sort(key=lambda c: c['published'], reverse=True)
+        print(f'[INFO] Candidates: {len(candidates)} total, {len(official)} official')
+        if not official:
+            print('[INFO] No fresh official stories available. Skipping.')
             return 0
-        # Fetch publisher articles concurrently; image validation happens only for finalists.
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(max_workers=6) as pool:
-            collected = [a for a in pool.map(get_article, candidates[:35]) if a]
+            collected = [a for a in pool.map(get_article, official[:60]) if a]
         collected.sort(key=importance_score, reverse=True)
-        print(f'[INFO] Parsed articles with image URLs: {len(collected)}')
+        print(f'[INFO] Parsed official articles: {len(collected)}')
         if not collected:
-            print('[INFO] No trustworthy full article with valid original photo. Skipping.')
+            print('[INFO] No trustworthy full official article with valid image URL. Skipping.')
             return 0
-        # Only publisher-owned material is eligible for automatic publication.
-        # Third-party feeds are monitored for discovery but cannot alone establish facts.
-        verified = [a for a in collected if a.get('tier') == 'official' and importance_score(a) >= 55]
+        verified = [a for a in collected if importance_score(a) >= 55]
         if not verified:
-            print('[INFO] No publisher-confirmed eligible stories. Skipping.')
+            print('[INFO] No eligible official stories meeting editorial threshold. Skipping.')
             return 0
-        print(f'[INFO] Eligible verified stories: {len(verified)}')
+        print(f'[INFO] Eligible verified official stories: {len(verified)}')
         validated_images = {}
-        for candidate in verified[:15]:
+        for candidate in verified[:20]:
             photo = download_real_image(candidate['image_url'])
             if photo:
                 validated_images[candidate['url']] = photo
-        verified = [a for a in verified[:15] if a['url'] in validated_images]
+        verified = [a for a in verified[:20] if a['url'] in validated_images]
         if not verified:
-            print('[INFO] No eligible article with a valid photo. Skipping.')
+            print('[INFO] No eligible official story with a valid photo. Skipping.')
             return 0
         article = choose_article(verified, client)
         if not article:
