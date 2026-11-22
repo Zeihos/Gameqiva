@@ -45,6 +45,21 @@ class EditorialTests(unittest.TestCase):
         self.assertEqual([item['published'] for item in chosen],
                          ['2026-11-22T04:00:00+00:00', '2026-11-22T03:00:00+00:00'])
 
+    def test_news_queue_includes_media_when_official_is_empty(self):
+        now = datetime.now(timezone.utc).isoformat()
+        items = [{'title': 'News', 'url': 'https://prohitech.ru/story',
+                  'published': now, 'tier': 'media', 'image_url': '', 'article': ''}]
+        self.assertEqual(run.ranked_news_candidates(items)[0]['url'], items[0]['url'])
+
+    def test_news_queue_does_not_discard_lower_priority_items(self):
+        now = datetime.now(timezone.utc).isoformat()
+        items = [{'title': 'Story ' + str(i), 'url': 'https://example.com/' + str(i),
+                  'published': now, 'tier': 'media', 'image_url': '', 'article': ''}
+                 for i in range(20)]
+        ranked = run.ranked_news_candidates(items)
+        self.assertEqual(len(ranked), 20)
+        self.assertEqual({a['url'] for a in ranked}, {a['url'] for a in items})
+
     def test_evergreen_posts_are_distinct_and_nonempty(self):
         self.assertGreaterEqual(len(run.EVERGREEN_POSTS), 7)
         self.assertEqual(len(set(run.EVERGREEN_POSTS)), len(run.EVERGREEN_POSTS))
