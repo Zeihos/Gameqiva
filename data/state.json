@@ -155,6 +155,16 @@
       "title": "This free app connects your Android phone to your Windows PC wirelessly",
       "vk_id": "34",
       "tg_id": "37"
+    },
+    "1a65113e8ce4b10371d4e5e2": {
+      "url": "https://www.pcgamer.com/hardware/graphics-cards/nvidia-released-a-hotfix-for-its-driver-hammering-your-ssd-but-it-doesnt-actually-work/",
+      "image_url": "https://cdn.mos.cms.futurecdn.net/8N9tGF8SW8x4iuVV9hNLRR-2560-80.jpg",
+      "text": "Nvidia Hotfix for SSD Write Issue Still Fails to Resolve\n\nНедавно пользователи Nvidia обнаружили, что драйверы заставляют SSD постоянно перезаписывать журналы, иногда до 30 ГБ в час, что сокращает срок службы накопителя.\n\nВ ответ Nvidia выпустила исправление 621.35, которое временно снижает скорость записи, но спустя несколько часов проблема возвращается. Самый надёжный способ пока – откатиться на 621.01 и не обновлять драйвер до подтверждения безопасности.",
+      "created_utc": "2026-11-23T03:46:50.929209+00:00",
+      "topic_key": "affb0bf8111147a11041e19c",
+      "title": "Nvidia released a hotfix for its driver hammering your SSD, but it doesn't actually work",
+      "vk_id": "35",
+      "tg_id": "38"
     }
   }
 }
