@@ -275,6 +275,16 @@
       "title": "World of Warcraft Forever beefs up Alterac Valley’s security detail and buffs Balance Druids",
       "vk_id": "57",
       "tg_id": "49"
+    },
+    "971548d5cc2cd44645cd91cc": {
+      "url": "https://godotengine.org/article/release-candidate-godot-4-8-rc-1/",
+      "image_url": "https://godotengine.org/storage/blog/covers/release-candidate-godot-4-8-rc-1.jpg",
+      "text": "Godot 4.8 RC 1 вышел: готов к интеграции\n\nGodot 4.8 RC 1 теперь доступен. В этом билде устранены критические регрессии и зафиксированы все запланированные функции, так что проекты могут начинать интеграцию.\nТестировщики, пожалуйста, делайте резервные копии и проверяйте работу. Любые новые проблемы можно сообщать в GitHub, а также поддержать проект финансово.\nБлагодарим всех, кто помогает развивать движок. При желании можно присоединиться к тестовой группе для доступа к предварительным сборкам Android и XR.",
+      "created_utc": "2026-11-27T23:33:53.364599+00:00",
+      "topic_key": "9bd685d3a44ebd8225b4b705",
+      "title": "Release candidate: Godot 4.8 RC 1",
+      "vk_id": "58",
+      "tg_id": "50"
     }
   }
 }
